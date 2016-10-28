@@ -9,5 +9,4 @@ buildNumber.properties
 .mvn/timing.properties
 bin/
 obj/
-**/bin
-**/obj
+.vscode/
