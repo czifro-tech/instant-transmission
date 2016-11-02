@@ -70,8 +70,8 @@ namespace MUDT.Collections
       match front with
       | hd::tl -> 
         hd, (match tl, rBack with
-          | [], r -> Queue((List.rev r), [])
-          | f, r -> Queue(f, r))
+             | [], r -> Queue((List.rev r), [])
+             | f, r -> Queue(f, r))
       | _ -> raise (new System.Exception("Queue is empty"))
 
     member this.TryUncons =  

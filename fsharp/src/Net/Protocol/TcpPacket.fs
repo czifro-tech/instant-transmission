@@ -41,3 +41,4 @@ namespace MUDT.Net.Protocol
     let CSVal = 'v'
     let PDrop = 'x'
     let Ping = 'P'
+    let User = 'u'

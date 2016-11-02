@@ -7,6 +7,8 @@
       "includeFiles": [
         "Collections/PriorityQueue.fs",
         "Collections/Queue.fs",
+        "Diagnostics/Cache.fs",
+        "Diagnostics/CurrentProcessInfo.fs",
         "Utilities/TypeUtility.fs",
         "Utilities/ConversionUtility.fs",
         "Net/Protocol/TcpPacket.fs",
@@ -16,7 +18,11 @@
         "Net/Sockets/Socket.fs",
         "Net/PortChecker.fs",
         "Net/TcpConnection.fs",
+        "Net/UdpConnection.fs",
         "Net/Server.fs",
+        "IO/MemoryMappedFileChecksum.fs",
+        "IO/MemoryMappedFilePartition.fs",
+        "IO/MemoryMappedFile.fs",
         "Program.fs"
       ]
     }
@@ -25,7 +31,8 @@
     "Microsoft.FSharp.Core.netcore": "1.0.0-alpha-160509",
     "System.Net.Sockets": "4.1.0",
     "System.Threading": "4.0.11",
-    "System.Threading.Tasks": "4.0.11"
+    "System.Threading.Tasks": "4.0.11",
+    "System.Diagnostics.Process": "4.1.0"
   },
   "tools": {
     "dotnet-compile-fsc": {
