@@ -6,3 +6,5 @@ namespace MUDT.Utilities
 
     let nullByteArray size =
       [| for i in 0 .. size -> nullByte |]
+
+    let aUnit = ()

@@ -5,12 +5,13 @@
     "compilerName": "fsc",
     "compile": {
       "includeFiles": [
-        "Collections/PriorityQueue.fs",
-        "Collections/Queue.fs",
-        "Diagnostics/Cache.fs",
-        "Diagnostics/CurrentProcessInfo.fs",
         "Utilities/TypeUtility.fs",
         "Utilities/ConversionUtility.fs",
+        "Collections/PriorityQueue.fs",
+        "Collections/Queue.fs",
+        "Cryptography/MD5.fs",
+        "Diagnostics/Cache.fs",
+        "Diagnostics/CurrentProcessInfo.fs",
         "Net/Protocol/TcpPacket.fs",
         "Net/Protocol/TcpByteComposer.fs",
         "Net/Protocol/TcpByteParser.fs",
@@ -19,10 +20,14 @@
         "Net/PortChecker.fs",
         "Net/TcpConnection.fs",
         "Net/UdpConnection.fs",
+        "Net/TcpHandler.fs",
         "Net/Server.fs",
+        "Net/Remote.fs",
         "IO/MemoryMappedFileChecksum.fs",
         "IO/MemoryMappedFilePartition.fs",
         "IO/MemoryMappedFile.fs",
+        "MudtApplication.fs",
+        "Application.fs",
         "Program.fs"
       ]
     }
