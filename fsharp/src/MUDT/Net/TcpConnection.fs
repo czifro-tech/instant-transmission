@@ -44,12 +44,12 @@ namespace MUDT.Net
         let ipAddresses = hostInfo.AddressList
         let endPoint = IPEndPoint(ipAddresses.[0], port)
         x.Socket <- newSocket
-        do! x.Socket.AsyncConnect(endPoint)
+        return! x.Socket.AsyncConnect(endPoint)
       }
 
     member x.ListenAsync(port:int) = 
       async {
-        if isNull(x.Socket) = false then
+        if not <| isNull(x.Socket) then
           raise (SocketException(SocketError.AddressAlreadyInUse |> int))
         else
           let endPoint = IPEndPoint(IPAddress.Any, port)
@@ -62,11 +62,14 @@ namespace MUDT.Net
       async {
         if isNull(x.Socket) then
           raise (ArgumentNullException("Socket"))
-        else if x.Socket.IsBound = false then
+        else if not <| x.Socket.IsBound then
           raise (SocketException(SocketError.NotInitialized |> int))
         let tcp = TcpConnection()
-        tcp.Socket <- x.Socket.AsyncAccept()
-        |> Async.RunSynchronously
+        let accepted (args:SocketAsyncEventArgs) =
+          tcp.Socket <- args.AcceptSocket
+        let! ret = x.Socket.AsyncAccept(accepted)
+        if not <| ret then
+          raise (SocketException(SocketError.SocketError |> int))
         return tcp
       }
 

@@ -10,14 +10,24 @@ namespace MUDT.Net
 
     type Socket with
 
-      member x.AsyncAccept() =
+      member x.AsyncAccept(accepted) =
         async {
-          return! Async.AwaitTask(x.AcceptAsync())
+          let e = new SocketAsyncEventArgs()
+          e.Completed.Add(accepted)
+          e.Completed.Add(fun arg -> 
+            ignore 0 // Add logger here for tracing
+          )
+          return x.AcceptAsync(e)
         }
 
       member x.AsyncConnect(endPoint:IPEndPoint) =
         async {
-          do! Async.AwaitTask(x.ConnectAsync(endPoint))
+          let e = new SocketAsyncEventArgs()
+          e.RemoteEndPoint <- endPoint
+          e.Completed.Add(fun arg -> 
+            ignore 0 // Add logger here for tracing
+          )
+          return x.ConnectAsync(e)
         }
 
       member x.AsyncListen(backlog:int) =

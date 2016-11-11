@@ -10,3 +10,4 @@ buildNumber.properties
 bin/
 obj/
 .vscode/
+packages/

@@ -31,9 +31,7 @@ namespace MUDT.Net
           let tcp = new TcpConnection()
           tcp.ByteComposer <- TcpByteComposer.tcpPacketToByteArray
           tcp.ByteParser <- TcpByteParser.byteArrayToTcpPacket
-          do! tcp.ConnectAsync(ip, port)
-
-          return 0 |> ignore
+          return tcp.ConnectAsync(ip, port) |> ignore
         }
       Async.Start(client,cts.Token)
       { new IDisposable with member x.Dispose() = cts.Cancel(); }

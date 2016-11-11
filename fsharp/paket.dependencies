@@ -1,0 +1,41 @@
+source https://nuget.org/api/v2
+source https://www.myget.org/F/nuget-volatile/api/v3/index.json
+source https://www.myget.org/F/netcorecli-fsc-preview3/api/v3/index.json
+
+nuget FSharp.Core prerelease redirects: force
+
+nuget FSharp.NET.Sdk
+nuget FsUnit
+nuget System.Net.Sockets prerelease
+nuget System.Threading prerelease
+nuget System.Threading.Tasks prerelease
+nuget System.Diagnostics.Process prerelease
+nuget System.Runtime.InteropServices prerelease
+nuget System.Runtime.InteropServices.RuntimeInformation prerelease
+nuget Microsoft.NETCore.Platforms prerelease
+nuget runtime.native.System.Security.Cryptography prerelease
+
+group Build
+
+  source https://nuget.org/api/v2
+  
+  nuget FAKE prerelease
+  nuget FSharp.Formatting
+  nuget ILRepack
+  //nuget FSharp.Core == 4.0.1.7-alpha redirects: force
+  
+  github fsharp/FAKE modules/Octokit/Octokit.fsx
+
+group Test
+
+  source https://nuget.org/api/v2
+
+  nuget Moq
+  nuget FSCheck
+  
+  nuget NUnit
+  nuget NUnit.Console
+  nuget NUnit3TestAdapter version_in_path: true               
+  nuget FSharp.Core == 4.0.1.7-alpha redirects: force
+
+  github forki/FsUnit FsUnit.fs

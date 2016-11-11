@@ -2,7 +2,7 @@ namespace MUDT.IO
 
   open System
   open System.Collections.Generic
-  //open System.Security.Cryptography
+  open System.Security.Cryptography
   open MUDT.Diagnostics
   open MUDT.Cryptography
 
@@ -30,48 +30,49 @@ namespace MUDT.IO
 
   module MemoryMappedFileChecksum =
 
-    let update (checksumState:MemoryMappedFileChecksumState) (bytes:byte[]) =
-      {
-        checksumState with
-          md5State = MD5.updateState checksumState.md5State bytes 0 (Array.length bytes)
-      }
+    let t = 0 
+    // let update (checksumState:MemoryMappedFileChecksumState) (bytes:byte[]) =
+    //   {
+    //     checksumState with
+    //       md5State = MD5_0.updateState checksumState.md5State bytes 0 (Array.length bytes)
+    //   }
     
-    let computeAndStore (checksumState:MemoryMappedFileChecksumState) (bytes:byte[]) =
-      let createHash = 
-        (MD5.updateState checksumState.md5State bytes 0 (Array.length bytes))
-        |> MD5.finalState
-      {
-        checksumState with
-          checksum = Array.append checksumState.checksum createHash
-      }
+    // let computeAndStore (checksumState:MemoryMappedFileChecksumState) (bytes:byte[]) =
+    //   let createHash = 
+    //     (MD5_0.updateState checksumState.md5State bytes 0 (Array.length bytes))
+    //     |> MD5_0.finalState
+    //   {
+    //     checksumState with
+    //       checksum = Array.append checksumState.checksum createHash
+    //   }
 
-    let backlogAndCompute (checksumState:MemoryMappedFileChecksumState) (bytes:byte[]) =
-      let bytesLength = Array.length bytes
-      if ((Array.length checksumState.backlog) + bytesLength) > checksumState.maxBacklogSize then
-        let lastIndex = checksumState.maxBacklogSize - bytesLength
-        let buffer = Array.append checksumState.backlog bytes.[0..lastIndex]
-        let createHash = 
-          (MD5.updateState checksumState.md5State buffer 0 (Array.length buffer))
-          |> MD5.finalState
-        {
-          checksumState with
-           backlog = bytes.[lastIndex..];
-           checksum = Array.append checksumState.checksum createHash;
-        }
-      else
-        {
-          checksumState with
-            backlog = Array.append checksumState.backlog bytes;
-        }
+    // let backlogAndCompute (checksumState:MemoryMappedFileChecksumState) (bytes:byte[]) =
+    //   let bytesLength = Array.length bytes
+    //   if ((Array.length checksumState.backlog) + bytesLength) > checksumState.maxBacklogSize then
+    //     let lastIndex = checksumState.maxBacklogSize - bytesLength
+    //     let buffer = Array.append checksumState.backlog bytes.[0..lastIndex]
+    //     let createHash = 
+    //       (MD5_0.updateState checksumState.md5State buffer 0 (Array.length buffer))
+    //       |> MD5_0.finalState
+    //     {
+    //       checksumState with
+    //        backlog = bytes.[lastIndex..];
+    //        checksum = Array.append checksumState.checksum createHash;
+    //     }
+    //   else
+    //     {
+    //       checksumState with
+    //         backlog = Array.append checksumState.backlog bytes;
+    //     }
 
-    let finalAndStore (checksumState:MemoryMappedFileChecksumState) =
-      {
-        checksumState with
-          checksum = Array.append checksumState.checksum (MD5.finalState checksumState.md5State)
-      }
+    // let finalAndStore (checksumState:MemoryMappedFileChecksumState) =
+    //   {
+    //     checksumState with
+    //       checksum = Array.append checksumState.checksum (MD5_0.finalState checksumState.md5State)
+    //   }
 
-    let final (checksumState:MemoryMappedFileChecksumState) =
-      (finalAndStore checksumState).checksum
+    // let final (checksumState:MemoryMappedFileChecksumState) =
+    //   (finalAndStore checksumState).checksum
 
     // let private mappedChecksum =
     //   let cacheKey = "mappedChecksum"
