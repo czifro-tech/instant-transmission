@@ -7,6 +7,7 @@ open Fake.AssemblyInfoFile
 open Fake.ReleaseNotesHelper
 open Fake.UserInputHelper
 open System
+open System.Collections.Generic
 open System.Text
 open System.IO
 open System.IO.Compression
@@ -61,6 +62,16 @@ let genFSAssemblyInfo (projectPath) =
         Attribute.FileVersion version
         Attribute.InformationalVersion version ]
 
+let getConfigText (config:FileInfo) =
+    use s = config.OpenText()
+    s.ReadToEnd()
+
+let createConfigWithText (fullName:string) (text:string) =
+    let config = FileInfo(fullName)
+    use s = config.CreateText()
+    s.Write(text)
+    config
+
 // Targets
 
 Target "AssemblyInfo" (fun _ ->
@@ -93,10 +104,49 @@ Target "Clean" (fun _ ->
     CleanDirs [buildDir; deployDir]
 )
 
+Target "CopyNativeDependencies" (fun _ ->
+    let nativeDir = 
+        let rootPath = System.Environment.GetFolderPath(System.Environment.SpecialFolder.UserProfile)
+        sprintf "%s%s%s" rootPath directorySeparator ".native"
+    if Directory.Exists(nativeDir) then
+        tracefn "%s already exists" nativeDir
+    else
+        let userDir = System.Environment.GetFolderPath(System.Environment.SpecialFolder.UserProfile)
+        let localNativeDirOpt =
+            let mutable curDir = DirectoryInfo(currentDirectory)
+            let search (dirs:DirectoryInfo[]) =
+                dirs |> Array.tryFind(fun x -> 
+                    x.FullName.EndsWith(".native")
+                )
+            while (search (curDir.GetDirectories())).IsNone do
+                curDir <- curDir.Parent
+            (search (curDir.GetDirectories()))
+        if localNativeDirOpt.IsNone then failwith "Could not find .native"
+        let localNativeDir = localNativeDirOpt.Value.FullName
+        Directory.CreateDirectory(nativeDir) |> ignore
+        tracefn "Copying native libs from %s to %s" localNativeDir nativeDir
+        let files = (DirectoryInfo(localNativeDir)).GetFiles()
+        for file in files do
+            file.CopyTo(Path.Combine(nativeDir, file.Name), true) |> ignore
+        
+        tracefn "Successfully copied native libs"
+)
+
 Target "Build" (fun _ ->
     // compile all projects below src/app/
-    MSBuildDebug buildDir "Build" appReferences
-    |> Log "AppBuild-Output: "
+    let genFiles = MSBuildDebug buildDir "Build" appReferences
+    genFiles |> Log "AppBuild-Output: "
+    tracefn "%A" genFiles
+    tracefn "Copying MUDT.config to MUDT.dll.config in build directory"
+    let mudtDll = genFiles |> List.find(fun x -> x.EndsWith(project + ".dll"))
+    let mudtTestDll = genFiles |> List.find(fun x -> x.EndsWith(project + ".Test.dll"))
+    let mudtDllConfig = mudtDll + ".config"
+    let appConfigPath = Path.Combine(currentDirectory, "MUDT.config")
+    let appConfig = FileInfo(appConfigPath)
+    let appConfigText = getConfigText appConfig
+    let mudtDllConfigText = appConfigText.Replace("{dir}", "/Users/czifro/bin/Linux.x64.Debug/Native")//Path.Combine(appConfig.Directory.FullName, ".native"))
+    let config = createConfigWithText mudtDllConfig mudtDllConfigText
+    ignore <| config.CopyTo(Path.Combine(config.Directory.FullName, mudtTestDll + ".config"))
 )
 
 Target "Test" (fun _ ->
@@ -122,6 +172,7 @@ Target "Deploy" (fun _ ->
 
 // Build order
 "Clean"
+  ==> "CopyNativeDependencies"
   ==> "Build"
   ==> "Test"
   ==> "Deploy"

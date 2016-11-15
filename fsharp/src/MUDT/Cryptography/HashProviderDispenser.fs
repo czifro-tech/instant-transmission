@@ -13,16 +13,29 @@ namespace MUDT.Cryptography
 
     let private isLinux =
       RuntimeInformation.IsOSPlatform(OSPlatform.Linux)
-
-    let createHashProvider (alg:HashAlgorithmNames) = 
+    
+    let private tryCreate alg =
       let os = 
         RuntimeInformation.OSDescription
         |> OSPlatform.Create
       match os with
       | x when isOSX -> 
-        printf "Using Apple MD5"
+        printfn "Using Apple MD5"
+        printfn "Exists: %b" (System.IO.File.Exists(Libraries.AppleCryptoNative))
         Apple.AppleHashProviderDispenser.createHashProvider (alg)
       | x when isLinux -> 
-        printf "Using Unix MD5"
+        printfn "Using Unix MD5"
         Unix.UnixHashProviderDispenser.createHashProvider (alg)
       | _ -> failwithf "OS not supported: %s" (os.ToString())
+
+    let createHashProvider (alg:HashAlgorithmNames) =
+      try 
+        //Environment.
+        printfn "Trying to create an MD5 hasher"
+        //Libraries.SetDllDirectory(Libraries.NativeDir) |> ignore
+        tryCreate alg
+      with
+      | :? System.DllNotFoundException ->
+        printfn "Could not locate native lib, changing dll directory and trying again"
+        //Libraries.SetDllDirectory(Libraries.NativeDir) |> ignore
+        tryCreate alg
