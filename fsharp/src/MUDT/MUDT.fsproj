@@ -1179,7 +1179,6 @@
     <Message Text="$(TargetPath)" />
   </Target>
 
-  <Target Name="Build" DependsOnTargets="$(BuildDependsOn)" Outputs="$(TargetPath)"/>
-  <!--<Import Project="$(MSBuildBinPath)\Microsoft.Common.targets"/>-->
-  <!--<Import Project="..\..\Local.Microsoft.Common.targets"/>-->
+  <!--<Target Name="Build" DependsOnTargets="$(BuildDependsOn)" Outputs="$(TargetPath)"/>-->
+  <Import Project="$(MSBuildBinPath)\Microsoft.Common.targets"/>
 </Project>
