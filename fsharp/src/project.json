@@ -11,6 +11,7 @@
         "Diagnostics/CurrentProcessInfo.fs",
         "Utilities/TypeUtility.fs",
         "Utilities/ConversionUtility.fs",
+        "Cryptography/Hasher.fs",
         "Net/Protocol/TcpPacket.fs",
         "Net/Protocol/TcpByteComposer.fs",
         "Net/Protocol/TcpByteParser.fs",
@@ -29,10 +30,10 @@
   },
   "dependencies": {
     "Microsoft.FSharp.Core.netcore": "1.0.0-alpha-160509",
-    "System.Net.Sockets": "4.1.0",
-    "System.Threading": "4.0.11",
-    "System.Threading.Tasks": "4.0.11",
-    "System.Diagnostics.Process": "4.1.0"
+    "System.Net.Sockets": "4.3.0",
+    "System.Threading": "4.3.0",
+    "System.Threading.Tasks": "4.3.0",
+    "System.Diagnostics.Process": "4.3.0"
   },
   "tools": {
     "dotnet-compile-fsc": {
@@ -51,9 +52,9 @@
           "type": "platform",
           "version": "1.0.0"
         },
-        "System.Net.Sockets": "4.1.0",
-        "System.Threading": "4.0.11",
-        "System.Threading.Tasks": "4.0.11"
+        "System.Net.Sockets": "4.3.0",
+        "System.Threading": "4.3.0",
+        "System.Threading.Tasks": "4.3.0"
       },
       "imports": [
         "portable-net45+win8",
