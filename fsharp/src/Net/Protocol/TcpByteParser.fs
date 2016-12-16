@@ -27,7 +27,7 @@ namespace MUDT.Net.Protocol
           action = bytes.[1];
       }
 
-    let parseCSum (bytes:byte[]) =
+    let parseChecksum (bytes:byte[]) =
       {
         TcpPacket.DefaultInstance() with
           ptype = bytes.[0];
@@ -35,7 +35,7 @@ namespace MUDT.Net.Protocol
           dLen = ConversionUtility.bytesToInt bytes.[5..9];
       }
 
-    let parseCSVal (bytes:byte[]) =
+    let parseChecksumValidation (bytes:byte[]) =
       {
         TcpPacket.DefaultInstance() with
           ptype = bytes.[0];
@@ -43,14 +43,14 @@ namespace MUDT.Net.Protocol
           pNum = ConversionUtility.bytesToInt bytes.[2..6];
       }
 
-    let parsePDrop (bytes:byte[]) =
+    let parsePacketDropped (bytes:byte[]) =
       {
         TcpPacket.DefaultInstance() with
           ptype = bytes.[0]
           seqNum = ConversionUtility.bytesToInt64 bytes.[1..8];
       }
 
-    let parserPing (bytes:byte[]) =
+    let parsePing (bytes:byte[]) =
       {
         TcpPacket.DefaultInstance() with
           ptype = bytes.[0];
@@ -58,12 +58,12 @@ namespace MUDT.Net.Protocol
       }
 
     let byteArrayToTcpPacket (bytes:byte[]) =
-      match (bytes.[0] |> char) with
-      | t when t = TcpPacketType.Meta -> Some (parseMeta bytes)
-      | t when t = TcpPacketType.Ports -> Some (parserPorts bytes)
-      | t when t = TcpPacketType.Act -> Some (parseAct bytes)
-      | t when t = TcpPacketType.CSum -> Some (parseCSum bytes)
-      | t when t = TcpPacketType.CSVal -> Some (parseCSVal bytes)
-      | t when t = TcpPacketType.PDrop -> Some (parsePDrop bytes)
-      | t when t = TcpPacketType.Ping -> Some (parserPing bytes)
+      match Tcp.parsePacketType { TcpPacket.DefaultInstance() with TcpPacket.ptype = bytes.[0] } with
+      | Meta -> Some (parseMeta bytes)
+      | Ports -> Some (parserPorts bytes)
+      | Action -> Some (parseAct bytes)
+      | Checksum -> Some (parseChecksum bytes)
+      | ChecksumValidation -> Some (parseChecksumValidation bytes)
+      | PacketDropped -> Some (parsePacketDropped bytes)
+      | Ping -> Some (parsePing bytes)
       | _ -> None

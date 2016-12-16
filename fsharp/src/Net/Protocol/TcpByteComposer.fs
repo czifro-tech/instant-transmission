@@ -29,19 +29,19 @@ namespace MUDT.Net.Protocol
       |> copyAsBytes packet.ptype 0
       |> copyAsBytes packet.action 1
 
-    let composeCSum (packet:TcpPacket) =
+    let composeChecksum (packet:TcpPacket) =
       createByteArray
       |> copyAsBytes packet.ptype 0
       |> copyAsBytes packet.pNum 1
       |> copyAsBytes packet.dLen 5
 
-    let composeCSVal (packet:TcpPacket) =
+    let composeChecksumValidation (packet:TcpPacket) =
       createByteArray
       |> copyAsBytes packet.ptype 0
       |> copyAsBytes packet.result 1
       |> copyAsBytes packet.pNum 2
 
-    let composePDrop (packet:TcpPacket) =
+    let composePacketDropped (packet:TcpPacket) =
       createByteArray
       |> copyAsBytes packet.ptype 0
       |> copyAsBytes packet.seqNum 1
@@ -52,12 +52,12 @@ namespace MUDT.Net.Protocol
       |> copyAsBytes packet.timestamp 1
 
     let tcpPacketToByteArray (packet:TcpPacket) =
-      match (packet.ptype |> char) with
-      | t when t = TcpPacketType.Meta -> Some (composeMeta packet)
-      | t when t = TcpPacketType.Ports -> Some (composePorts packet)
-      | t when t = TcpPacketType.Act -> Some (composeAct packet)
-      | t when t = TcpPacketType.CSum -> Some (composeCSum packet)
-      | t when t = TcpPacketType.CSVal -> Some (composeCSVal packet)
-      | t when t = TcpPacketType.PDrop -> Some (composePDrop packet)
-      | t when t = TcpPacketType.Ping -> Some (composePing packet)
+      match Tcp.parsePacketType packet with
+      | Meta -> Some (composeMeta packet)
+      | Ports -> Some (composePorts packet)
+      | Action -> Some (composeAct packet)
+      | Checksum -> Some (composeChecksum packet)
+      | ChecksumValidation -> Some (composeChecksumValidation packet)
+      | PacketDropped -> Some (composePacketDropped packet)
+      | Ping -> Some (composePing packet)
       | _ -> None

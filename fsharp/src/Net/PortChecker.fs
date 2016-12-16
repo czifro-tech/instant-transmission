@@ -22,11 +22,11 @@ namespace MUDT.Net
     let isPortOpen (port:int) =
       checkPort port
 
-    let getAvailablePorts =
+    let getAvailablePorts() =
       let ports = [| for i in 1024 .. 65535 -> i |]
       ports
-      |> Array.filter(fun x -> isPortOpen x)
+      |> Array.filter(isPortOpen)
 
     let filterAvailablePorts (ports:int[]) =
       ports
-      |> Array.filter(fun x -> isPortOpen x)
+      |> Array.filter(isPortOpen)

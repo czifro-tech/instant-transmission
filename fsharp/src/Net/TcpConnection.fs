@@ -19,6 +19,13 @@ namespace MUDT.Net
 
     let mutable _receiveCallback = (fun x -> async { ignore 0 }) : TcpPacket -> Async<unit> 
 
+    let _receiveCompleted = 
+      EventHandler<SocketAsyncEventArgs>(fun (sender:obj) (e:SocketAsyncEventArgs) -> 
+        let packet = _parser(e.Buffer)
+        if packet.IsSome then
+          _receiveCallback(packet.Value) |> ignore
+      )
+
     let newSocket =
       new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp)
 
@@ -76,15 +83,10 @@ namespace MUDT.Net
         return! x.Socket.AsyncSend(bytes, 0, TcpPacket.DefaultSize)
       }
 
-    member private x.ReceiveCompleted(e:SocketAsyncEventArgs) =
-      let packet = x.ByteParser(e.Buffer)
-      if packet.IsSome then
-        x.ReceiveCallback(packet.Value) |> ignore
-
     member x.ReceiveAsync() = 
       async {
         let bytes = TypeUtility.nullByteArray TcpPacket.DefaultSize
-        return! x.Socket.AsyncReceive(bytes, 0, TcpPacket.DefaultSize, x.ReceiveCompleted)
+        return! x.Socket.AsyncReceive(bytes, 0, TcpPacket.DefaultSize, _receiveCompleted)
       }
 
     member x.Receive(size:int) =

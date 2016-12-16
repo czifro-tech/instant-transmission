@@ -16,6 +16,39 @@ namespace MUDT.Cryptography
       incrementalCount : int;
       incrementalLimit : int;
     }
+
+  type HashStateConfig =
+    {
+      doIncremental : bool;
+      doBacklogging : bool;
+      useBacklogLimit : int;
+      useIncrementalLimit : int;
+    }
+
+    static member internal DefaultInstance () =
+      {
+        doIncremental = false;
+        doBacklogging = false;
+        useBacklogLimit = 0;
+        useIncrementalLimit = 0;
+      }
+
+    static member IHConfig (incrementalLimit:int) =
+      {
+        HashStateConfig.DefaultInstance() with
+          doIncremental = true;
+          useIncrementalLimit = incrementalLimit;
+      }
+
+    static member Md5Config () =
+      HashStateConfig.DefaultInstance()
+
+    static member BackloggingMd5Config (backlogLimit:int) =
+      {
+        HashStateConfig.DefaultInstance() with
+          doBacklogging = true;
+          useBacklogLimit = backlogLimit;
+      }
   
   module Hasher =
 
@@ -44,6 +77,12 @@ namespace MUDT.Cryptography
         incrementalCount = 0;
         incrementalLimit = incrementalLimit
       }
+
+    let createHashState (config:HashStateConfig) =
+      if (config.doIncremental) then
+        createIHHashState config.useIncrementalLimit
+      else
+        createMd5HashState config.doBacklogging config.useBacklogLimit
 
     let private backlogAndCompute (state:HashState) (bytes:byte[]) =
       // recursively compute hash and backlog
@@ -77,7 +116,7 @@ namespace MUDT.Cryptography
       else
         {
           state with
-            checksums = Array.append state.checksums bytes
+            checksums = Array.append state.checksums (state.md5.ComputeHash(bytes))
         }
 
     let private doIHCompute (state:HashState) (bytes:byte[]) =
@@ -131,3 +170,13 @@ namespace MUDT.Cryptography
         doIHFinalize state
       else
         doMd5Finalize state
+
+(*
+  Starting test execution, please wait...
+Hash length: 1616
+Memory used: 1232896 bytes
+Doing backlog hashing
+Hash length: 1616
+Memory used: 958464 bytes
+Difference: 274432 bytes
+*)

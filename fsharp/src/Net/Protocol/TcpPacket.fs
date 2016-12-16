@@ -33,12 +33,28 @@ namespace MUDT.Net.Protocol
     static member DefaultSize 
       with get() = 15
 
-  module TcpPacketType =
-    let Meta = 'm'
-    let Ports = 'p'
-    let Act = 'a'
-    let CSum = 'd'
-    let CSVal = 'v'
-    let PDrop = 'x'
-    let Ping = 'P'
-    let User = 'u'
+  type TcpPacketType =
+    | Meta
+    | Ports
+    | Action
+    | Checksum
+    | ChecksumValidation
+    | PacketDropped
+    | Ping
+    | User
+    | Unknown
+
+  module Tcp =
+
+
+    let parsePacketType (packet:TcpPacket) =
+      match packet.ptype |> char with
+      | t when t = 'm' -> Meta
+      | t when t = 'p' -> Ports
+      | t when t = 'a' -> Action
+      | t when t = 'd' -> Checksum
+      | t when t = 'v' -> ChecksumValidation
+      | t when t = 'x' -> PacketDropped
+      | t when t = 'P' -> Ping
+      | t when t = 'u' -> User
+      | _ -> Unknown

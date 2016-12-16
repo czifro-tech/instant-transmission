@@ -2,165 +2,93 @@ namespace MUDT.IO
 
   open System
   open System.IO
-  open MemoryMappedFileChecksum
+  open MUDT.Cryptography
 
-  type MemoryMappedFilePartitionErrorCode =
-    | Success = 0
-    | Failed = 1
-    | OpenedInReadMode = 3
-    | OpenedInWriteMode = 4
-
-  type MemoryMappedFilePartitionMode =
-    | Read = 0
-    | Write = 1
-    | NotSet = 2
-
-  type MemoryMappedFilePartitionConfiguration =
+  type MMFPartitionState =
     {
+      mutable partitionHash : HashState;
       fileStream : FileStream;
-      position : int64;
-      mutable currentPosition : int64;
-      length : int;
-      mutable bufferSize : int;
-      mode : MemoryMappedFilePartitionMode
+      startPosition : int64;
+      currentPosition : int64;
+      partitionSize : int64;
+      buffer : MemoryStream;
+      bufferCapacity : int64;
     }
 
-    static member NewInstance(fs, pos, len) =
+  module MMFPartition =
+
+    let createMMFPartitionState (hashStateConfig:HashStateConfig) (fs:FileStream) (startPos:int64) (size:int64) (bufferCapacity:int64) =
+      let memStream = new MemoryStream()
+      memStream.Capacity <- int(bufferCapacity)
+      fs.Seek(startPos, SeekOrigin.Begin) |> ignore
       {
+        partitionHash = Hasher.createHashState(hashStateConfig);
         fileStream = fs;
-        position = pos;
-        currentPosition = pos;
-        length = len;
-        bufferSize = 0;
-        mode = MemoryMappedFilePartitionMode.NotSet
-      } 
-
-  type MemoryMappedFilePartition(config) =
-
-    let mutable _config = config : MemoryMappedFilePartitionConfiguration
-    let mutable _bufferSize = 0
-
-    let _memStream = new MemoryStream()
-
-    member x.Configuration 
-      with get() = _config
-      and private set(value) = _config <- value
-
-    member x.FileStream with get() = x.Configuration.fileStream
-
-    member x.CurrentPosition 
-      with get() = x.Configuration.currentPosition
-      and set(value) = x.Configuration.currentPosition <- value
-
-    member x.StartPosition with get() = x.Configuration.position
-
-    member x.PartitionLength with get() = x.Configuration.length
-
-    member x.BufferSize 
-      with get() = x.Configuration.bufferSize
-      and set(value) = x.Configuration.bufferSize <- value
-
-    member x.BufferLength
-      with get() = _memStream.Length
-
-    member x.Mode
-      with get() = x.Configuration.mode
-      and set(value) =
-        if value <> MemoryMappedFilePartitionMode.NotSet && 
-          x.Configuration.mode = MemoryMappedFilePartitionMode.NotSet then
-          x.Configuration <- 
-            {
-              x.Configuration with
-                mode = value
-            }
-
-    member x.Init() =
-      _memStream.Capacity <- x.BufferSize
-      x.FileStream.Seek(x.StartPosition, SeekOrigin.Begin) |> ignore
-
-    member x.ReplenishBufferFromFileAsync() =
-      async {
-        if x.Mode = MemoryMappedFilePartitionMode.Read then
-          let replenishSize =
-            let mutable t = int64(x.BufferSize) - _memStream.Length
-            if int64(t) < x.FileStream.Length then
-              t
-            else
-              x.FileStream.Length
-          try
-            do! ((x.FileStream.AsyncRead(int(replenishSize)))
-            |> Async.RunSynchronously
-            |> computeAndStoreHash x.StartPosition
-            |> _memStream.AsyncWrite)
-            x.CurrentPosition <- x.CurrentPosition + replenishSize
-            return MemoryMappedFilePartitionErrorCode.Success
-          with
-          | _ -> return MemoryMappedFilePartitionErrorCode.Failed
-        else
-          return MemoryMappedFilePartitionErrorCode.OpenedInWriteMode
+        startPosition = startPos;
+        currentPosition = startPos;
+        partitionSize = size;
+        buffer = memStream;
+        bufferCapacity = bufferCapacity;
       }
 
-    member x.ReadFromBufferAsync(count:int,callback:byte[]->Async<unit>) =
+    let private updateHash (state:byref<MMFPartitionState>) (bytes:byte[]) =
+      state.partitionHash <- Hasher.computeHash state.partitionHash bytes
+      bytes
+
+    let private refillBufferAsync (stat:MMFPartitionState) =
       async {
-        if x.Mode = MemoryMappedFilePartitionMode.Read then
-          let size = 
-            if int64(count) < _memStream.Length then int64(count) else _memStream.Length
-          try
-            let! bytes = _memStream.AsyncRead(int(size))
-            callback(bytes) |> ignore
-            return MemoryMappedFilePartitionErrorCode.Success
-          with
-          | _ -> return MemoryMappedFilePartitionErrorCode.Failed
+        let mutable state = stat
+        if state.buffer.Length < (state.bufferCapacity / 2L) then
+          let mutable diff = state.bufferCapacity - state.buffer.Length
+          if diff + state.currentPosition > state.partitionSize then
+            diff <- state.partitionSize - state.currentPosition
+          do! (state.fileStream.AsyncRead(int(diff))
+          |> Async.RunSynchronously
+          |> updateHash &state
+          |> state.buffer.AsyncWrite)
+          return { state with currentPosition = state.currentPosition + diff }
         else
-          return MemoryMappedFilePartitionErrorCode.OpenedInWriteMode
+          return state
       }
 
-    member x.WriteToBufferAsync(bytes:byte[]) =
+    let private flushAsync (len:int) (stat:MMFPartitionState) : Async<MMFPartitionState> =
       async {
-        if x.Mode = MemoryMappedFilePartitionMode.Write then
-          try
-            do! _memStream.AsyncWrite bytes
-            return MemoryMappedFilePartitionErrorCode.Success
-          with
-          | _ -> return MemoryMappedFilePartitionErrorCode.Failed
-        else
-          return MemoryMappedFilePartitionErrorCode.OpenedInReadMode
+        let mutable state = stat
+        do! (state.buffer.AsyncRead(len)
+        |> Async.RunSynchronously
+        |> updateHash &state
+        |> state.fileStream.AsyncWrite)
+        return { state with currentPosition = state.currentPosition + int64(len) }
       }
 
-    member x.PartiallyFlushBufferToFileAsync() = 
+    let private partialFlushBufferAsync (state:MMFPartitionState) = 
       async {
-        if x.Mode = MemoryMappedFilePartitionMode.Write then
-          let flushSize = int(x.BufferLength / 2L)
-          try
-            do! ((_memStream.AsyncRead flushSize)
-            |> Async.RunSynchronously
-            |> computeAndStoreHash x.StartPosition
-            |> x.FileStream.AsyncWrite)
-            x.CurrentPosition <- x.CurrentPosition + int64(flushSize)
-            return MemoryMappedFilePartitionErrorCode.Success
-          with
-          | _ -> return MemoryMappedFilePartitionErrorCode.Failed
+        if state.buffer.Length > (state.bufferCapacity / 2L) then
+          let len = state.buffer.Length
+          return! flushAsync (int(len)) state
         else
-          return MemoryMappedFilePartitionErrorCode.OpenedInReadMode
+          return state
       }
 
-    member x.FlushBufferToFileAsync() =
+    let fullFlushBufferAsync (state:MMFPartitionState) =
       async {
-        if x.Mode = MemoryMappedFilePartitionMode.Write then
-          let flushSize = _memStream.Length
-          try
-            do! ((_memStream.AsyncRead(int(_memStream.Length)))
-            |> Async.RunSynchronously
-            |> computeAndStoreHash x.StartPosition
-            |> x.FileStream.AsyncWrite)
-            x.CurrentPosition <- x.CurrentPosition + flushSize
-            return MemoryMappedFilePartitionErrorCode.Success
-          with
-          | _ -> return MemoryMappedFilePartitionErrorCode.Failed
+        if state.buffer.Length > 0L then
+          let len = state.buffer.Length
+          return! flushAsync (int(len)) state
         else
-          return MemoryMappedFilePartitionErrorCode.OpenedInReadMode
+          return state
       }
 
-    member x.Reset() =
-      x.FileStream.Seek(x.StartPosition - x.CurrentPosition, SeekOrigin.Current) |> ignore
-      x.CurrentPosition <- x.StartPosition
+    let writeToBufferAsync (state:MMFPartitionState) (bytes:byte[]) =
+      async {
+        do! state.buffer.AsyncWrite(bytes)
+        return! partialFlushBufferAsync state
+      }
+
+    let readFromBufferAsync (state:MMFPartitionState) (count:int) =
+      async {
+        let take = if int64(count) > state.buffer.Length then int(state.buffer.Length) else count
+        let! bytes = state.buffer.AsyncRead(take)
+        let! newState = refillBufferAsync state
+        return (bytes, newState)
+      }

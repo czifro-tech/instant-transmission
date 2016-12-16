@@ -19,6 +19,13 @@ namespace MUDT.Net
 
     let mutable _receiveCallback = (fun x -> async { ignore 0 }) : UdpPacket -> Async<unit> 
 
+    let _receiveCompleted = 
+      EventHandler<SocketAsyncEventArgs>(fun (sender:obj) (e:SocketAsyncEventArgs) -> 
+        let packet = _parser(e.Buffer)
+        if packet.IsSome then
+          _receiveCallback(packet.Value) |> ignore
+      )
+
     let newSocket = 
       new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp)
 
@@ -55,5 +62,5 @@ namespace MUDT.Net
     member x.ReceiveAsync() = 
       async {
         let bytes = TypeUtility.nullByteArray UdpPacket.DefaultSize
-        return! x.Socket.AsyncReceive(bytes, 0, UdpPacket.DefaultSize, x.ReceiveCompleted)
+        return! x.Socket.AsyncReceive(bytes, 0, UdpPacket.DefaultSize, _receiveCompleted)
       }

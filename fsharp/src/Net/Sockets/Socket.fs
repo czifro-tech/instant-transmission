@@ -43,6 +43,6 @@ namespace MUDT.Net
           let e = new SocketAsyncEventArgs()
           e.SetBuffer(bytes, offset, count)
           e.SocketFlags <- SocketFlags.None
-          e.Completed.Add(completed)
+          e.add_Completed(completed)
           return x.ReceiveAsync(e)
         }
