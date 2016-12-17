@@ -85,30 +85,30 @@ namespace MUDT.Cryptography
         createMd5HashState config.doBacklogging config.useBacklogLimit
 
     let private backlogAndCompute (state:HashState) (bytes:byte[]) =
-      // recursively compute hash and backlog
-      let rec compute (state:HashState) (b:byte[]) =
-        let len = Array.length b
-        let backlogLen = Array.length state.backlog
-        let diff = state.backlogLimit - backlogLen
-        if diff > len then // There is enough space to backlog the bytes to hash
-          {
-            state with
-              backlog = b
-          }
+      // Fix Issue #16: needed to do blocks iteratively
+      //  Recursion adds huge finger print in memory
+      let mutable state' = state
+      let len = Array.length bytes
+      if (Array.length state'.backlog) + len < state'.backlogLimit then
+        state' <- { state' with backlog = Array.append state'.backlog bytes }
+      else
+        // clearly we're at a past the limit. Lets fill remainder of backlog and reset
+        //  then we can do solid paging, or, just backlog.
+        let diff = state'.backlogLimit - (Array.length state'.backlog)
+        state' <- { state' with 
+                      checksums = Array.append state'.checksums (state'.md5.ComputeHash(Array.append state'.backlog bytes.[..diff-1])); 
+                      backlog = [||] }
+        let numberOfBlocks = float32(len - diff) / float32(state'.backlogLimit) // This should divide evenly, otherwise 0 < numberOfBlocks < 1
+        if numberOfBlocks < float32(1.0) then
+          state' <- { state' with backlog = bytes.[diff..] }
         else
-          if backlogLen = state.backlogLimit then // backlog is full, hash backlog and make rec call
-            compute ({
-                       state with
-                         checksums = Array.append state.checksums (state.md5.ComputeHash(state.backlog))
-                     }) b
-          else // hash backlog combined with portion of bytes size diff
-            compute ({
-                       state with
-                         checksums = Array.append state.checksums (state.md5.ComputeHash(Array.append state.backlog b.[0..diff-1]))
-                         backlog = [||]
-                     }) b.[diff..]
-
-      compute state bytes
+          for i in 0..int(floor(numberOfBlocks))-1 do
+            let startPos, endPos = diff + (i*state'.backlogLimit), diff + (i*state'.backlogLimit+(state'.backlogLimit-1))
+            state' <- {
+                        state' with
+                          checksums = Array.append state'.checksums (state'.md5.ComputeHash(bytes.[startPos..endPos]))
+                      }
+      state'
         
     let private doMd5Compute (state:HashState) (bytes:byte[]) =
       if state.isBacklogging then
@@ -120,30 +120,40 @@ namespace MUDT.Cryptography
         }
 
     let private doIHCompute (state:HashState) (bytes:byte[]) =
-      // recursively update hash
-      let rec update (state:HashState) (b:byte[]) =
-        if Array.isEmpty(b) then // if b is empty, we don't need to do anything
-          state
-        elif state.incrementalCount = state.incrementalLimit then // if we have updated {incrementalLimit} number of bytes, finalize hash, store, and reset
-          update ({
-                    state with
-                      checksums = Array.append state.checksums (state.ih.GetHashAndReset());
-                      incrementalCount = 0
-                  }) b
-        else // if hash can be icremented with b do so, otherwise split b
-          let len = Array.length b
-          let diff = state.incrementalLimit - state.incrementalCount
-          let inc, rem =
-            if diff > len then
-              b, [||]
-            else
-              b.[0..diff-1], b.[diff..]
-          state.ih.AppendData(inc)
-          update ({
-                    state with
-                      incrementalCount = state.incrementalCount + diff
-                  }) rem
-      update state bytes
+      // Fix Issue #16: needed to do blocks iteratively
+      //  Recursion adds huge finger print in memory
+      let mutable state' = state
+      let len = Array.length bytes
+      // In case state.incrementalCount < state.incrementalLimit
+      //  a portion, or all, of bytes can fit before having to reset
+      // If numberOfBlocks is < 1, all of bytes can fit. If a decimal
+      //  exists and is > 1, 1 or more resets can happen, and a portion
+      //  will be left
+      let numberOfBlocks = float(len + state'.incrementalCount) / float(state'.incrementalLimit)
+      if numberOfBlocks < 1.0 then
+        state' <- {
+                    state' with
+                      incrementalCount = state'.incrementalCount + len
+                  }
+        state'.ih.AppendData(bytes)
+      else
+        let blockCount = int(floor(numberOfBlocks))
+        let overage = float(numberOfBlocks - float(blockCount))
+
+        for i in 0..blockCount-1 do
+          let mutable startPos, endPos = i*state'.incrementalLimit, i*state'.incrementalLimit+(state'.incrementalLimit-1)
+          if state'.incrementalCount > 0 then 
+            endPos <- startPos + (state'.incrementalLimit - state'.incrementalCount)
+            state' <- { state' with incrementalCount = 0 }
+          state'.ih.AppendData(bytes.[startPos..endPos])
+          state' <- { state' with checksums = Array.append state'.checksums (state'.ih.GetHashAndReset()) }
+
+        if overage > 0.0 then 
+          let startPos, endPos = blockCount*state'.incrementalLimit, len-1
+          state'.ih.AppendData(bytes.[startPos..endPos])
+          state' <- { state' with incrementalCount = endPos - startPos }
+
+      state'
 
     let computeHash (state:HashState) (bytes:byte[]) = 
       if state.isIncremental then 
@@ -170,13 +180,3 @@ namespace MUDT.Cryptography
         doIHFinalize state
       else
         doMd5Finalize state
-
-(*
-  Starting test execution, please wait...
-Hash length: 1616
-Memory used: 1232896 bytes
-Doing backlog hashing
-Hash length: 1616
-Memory used: 958464 bytes
-Difference: 274432 bytes
-*)

@@ -17,7 +17,7 @@ module HasherUnitTests =
 
   let createData (size:int) =
     let rand = new Random(5); // seed to create same data
-    [| for i in 0..size -> byte (rand.Next()) |]
+    [| for i in 1..size -> byte (rand.Next()) |]
 
   let staticSmallData = createData(smallData)
   let staticMediumData = createData(mediumData)
@@ -29,8 +29,6 @@ module HasherUnitTests =
     let dataHash = (Hasher.computeHash state data) |> Hasher.finalizeHash
     let endMem = CurrentProcessInfo.totalUsedPhysicalMemory()
     let endTime = DateTime.UtcNow
-    // printfn "Hash length: %d" (Array.length dataHash)
-    // printfn "Memory used: %d bytes" (abs(startMem - endMem))
     (abs((startMem - endMem) - cacheCost)), (endTime - startTime).Milliseconds, (Array.length dataHash)
 
   let doIncrementalHashing(data:byte[],size:int) =
@@ -89,32 +87,29 @@ module HasherUnitTests =
                                 |])
     printfn "%s" res
     Assert.Equal(true, true)
-    // CurrentProcessInfo.printProcessMemoryInfo()
-    // let data = createData(mediumData)
-    // CurrentProcessInfo.printProcessMemoryInfo()
 
 
-  [<Fact>]
-  let ``Test at once verses in stages should not match`` () =
-    let ih1 = createDefaultIHHashState()
-    let ih2 = createDefaultIHHashState()
-    let data = createData(smallData)
-    let hash1 = (Hasher.computeHash ih1 data) |> Hasher.finalizeHash
-    let doHash2 (d:byte[]) s e (state:HashState) =
-       d.[s..e]
-       |> Hasher.computeHash state
-    let offset = (Array.length data) / 4
-    let hash2 = 
-      ih2
-      |> doHash2 data (0) (offset-1)
-      |> doHash2 data (offset) (2*offset-1)
-      |> doHash2 data (2*offset) (2*offset-1)
-      |> doHash2 data (3*offset) (4*offset-1)
-      |> Hasher.finalizeHash
+  // [<Fact>]
+  // let ``Test at once verses in stages should not match`` () =
+  //   let ih1 = createDefaultIHHashState()
+  //   let ih2 = createDefaultIHHashState()
+  //   let data = createData(smallData)
+  //   let hash1 = (Hasher.computeHash ih1 data) |> Hasher.finalizeHash
+  //   let doHash2 (d:byte[]) s e (state:HashState) =
+  //      d.[s..e]
+  //      |> Hasher.computeHash state
+  //   let offset = (Array.length data) / 4
+  //   let hash2 = 
+  //     ih2
+  //     |> doHash2 data (0) (offset-1)
+  //     |> doHash2 data (offset) (2*offset-1)
+  //     |> doHash2 data (2*offset) (2*offset-1)
+  //     |> doHash2 data (3*offset) (4*offset-1)
+  //     |> Hasher.finalizeHash
 
-    let mutable dontMatch = false
-    if (Array.length hash1) = (Array.length hash2) then
-      Array.iter2(fun a b -> if a <> b then dontMatch <- true) hash1 hash2
-    else
-      dontMatch <- true
-    Assert.Equal(true, dontMatch)
+  //   let mutable dontMatch = false
+  //   if (Array.length hash1) = (Array.length hash2) then
+  //     Array.iter2(fun a b -> if a <> b then dontMatch <- true) hash1 hash2
+  //   else
+  //     dontMatch <- true
+  //   Assert.Equal(true, dontMatch)
