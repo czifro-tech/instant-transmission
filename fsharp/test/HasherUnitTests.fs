@@ -46,7 +46,7 @@ module HasherUnitTests =
   [<Fact>]
   let ``Compare Memory Usage`` () =
     let iter = 100
-    let data, size = staticMediumData, mediumData
+    let data, size = staticLargeData, largeData
     let usageComparison(i) =
       let ih = doIncrementalHashing(data, size)
       let backlog = doBacklogHashing(data, size)

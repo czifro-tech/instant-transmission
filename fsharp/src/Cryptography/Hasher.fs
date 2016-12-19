@@ -1,8 +1,6 @@
 namespace MUDT.Cryptography
 
-  open System
   open System.Security.Cryptography
-  open MUDT.Diagnostics
 
   type HashState =
     {
