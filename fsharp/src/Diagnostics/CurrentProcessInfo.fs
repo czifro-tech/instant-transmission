@@ -29,10 +29,10 @@ namespace MUDT.Diagnostics
     //  a system has. 
     // So, as a workaround, user will need to set a limit
     //  this limit is mostly used by MemoryMappedFile.fs
-    let mutable private memoryLimit = 0
+    let mutable private memoryLimit = 0L
 
-    let setMemoryLimit limit =
-      if memoryLimit = 0 then memoryLimit <- limit // can only set once
+    let setMemoryLimit (limit:int64) =
+      if memoryLimit = 0L then memoryLimit <- limit // can only set once
 
     let getMemoryLimit() = memoryLimit
 

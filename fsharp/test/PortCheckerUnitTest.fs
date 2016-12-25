@@ -7,7 +7,7 @@
 
   module PortCheckerUnitTest =
 
-    [<Fact>]
+    //[<Fact>]
     let ``Speed Test`` () =
 
       let startTime = DateTime.UtcNow

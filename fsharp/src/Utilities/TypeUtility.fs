@@ -5,4 +5,4 @@ namespace MUDT.Utilities
     let nullByte = byte 0uy
 
     let nullByteArray size =
-      [| for i in 0 .. size -> nullByte |]
+      [| for i in 0 .. size-1 -> nullByte |]

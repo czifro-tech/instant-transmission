@@ -7,30 +7,7 @@
     <OutputType>Library</OutputType>
   </PropertyGroup>
 
-  <!--<Import Project="MUDT.compile" />-->
-  <ItemGroup>
-    <Compile Include="Collections\PriorityQueue.fs" />
-    <Compile Include="Collections\Queue.fs" />
-    <Compile Include="Diagnostics\Cache.fs" />
-    <Compile Include="Diagnostics\CurrentProcessInfo.fs" />
-    <Compile Include="Utilities\TypeUtility.fs" />
-    <Compile Include="Utilities\ConversionUtility.fs" />
-    <Compile Include="Cryptography\Hasher.fs" />
-    <Compile Include="Net\Protocol\TcpPacket.fs" />
-    <Compile Include="Net\Protocol\TcpByteComposer.fs" />
-    <Compile Include="Net\Protocol\TcpByteParser.fs" />
-    <Compile Include="Net\Protocol\UdpPacket.fs" />
-    <Compile Include="Net\Sockets\Socket.fs" />
-    <Compile Include="Net\PortChecker.fs" />
-    <Compile Include="Net\TcpConnection.fs" />
-    <Compile Include="Net\UdpConnection.fs" />
-    <Compile Include="Net\Server.fs" />
-    <!--<Compile Include="IO\MemoryMappedFileChecksum.fs" />-->
-    <Compile Include="IO\MemoryMappedFilePartition.fs" />
-    <Compile Include="IO\MemoryMappedFile.fs" />
-    <!--<Compile Include="Program.fs" />-->
-    <EmbeddedResource Include="**\*.resx" />
-  </ItemGroup>
+  <Import Project=".\MUDT.compile.targets" />
 
   <ItemGroup>
     <PackageReference Include="NETStandard.Library" Version="1.6" />
@@ -44,6 +21,7 @@
     <PackageReference Include="System.Threading.Tasks" Version="4.3.0" />
     <PackageReference Include="System.Diagnostics.Process" Version="4.3.0" />
     <PackageReference Include="System.Security.Cryptography.Algorithms" Version="4.3.0" />
+    <PackageReference Include="System.Runtime.Extensions" Version="4.3.0" />
   </ItemGroup>
 
   <ItemGroup>
@@ -51,21 +29,4 @@
       <Version>1.0.0-preview2-020000</Version>
     </DotNetCliToolReference>
   </ItemGroup>
-
-  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
-    <DefineConstants>$(DefineConstants);RELEASE</DefineConstants>
-  </PropertyGroup>
-  
-  <ProjectExtensions>
-    <MonoDevelop>
-      <Properties>
-        <Policies>
-          <TextStylePolicy TabsToSpaces="False" RemoveTrailingWhitespace="True" NoTabsAfterNonTabs="False" EolMarker="Native" FileWidth="120" TabWidth="2" IndentWidth="2" inheritsSet="Mono" inheritsScope="text/plain" scope="text/x-fsharp" />
-          <FSharpFormattingPolicy scope="text/x-fsharp">
-            <DefaultFormat IndentOnTryWith="False" ReorderOpenDeclaration="False" SpaceAfterComma="True" SpaceAfterSemicolon="True" SpaceAroundDelimiter="True" SpaceBeforeArgument="True" SpaceBeforeColon="True" />
-          </FSharpFormattingPolicy>
-        </Policies>
-      </Properties>
-    </MonoDevelop>
-  </ProjectExtensions>
 </Project>

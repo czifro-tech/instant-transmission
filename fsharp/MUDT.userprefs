@@ -1,7 +1,7 @@
 ﻿<Properties StartupConfiguration="{FC02F7F4-FB7E-4965-96AE-4F0CA5331197}|Default">
   <MonoDevelop.Ide.Workbench ActiveDocument="src/Cryptography/Hasher.fs">
     <Files>
-      <File FileName="src/Cryptography/Hasher.fs" Line="23" Column="14" />
+      <File FileName="src/Cryptography/Hasher.fs" Line="32" Column="8" />
     </Files>
   </MonoDevelop.Ide.Workbench>
   <MonoDevelop.Ide.Workspace ActiveConfiguration="Debug" />
@@ -13,5 +13,4 @@
   <DisabledProjects>
     <String>src/MUDT.csproj</String>
   </DisabledProjects>
-  <MonoDevelop.Ide.ItemProperties.MUDT.Test PreferredExecutionTarget="MonoDevelop.Default" />
 </Properties>

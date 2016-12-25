@@ -1,4 +1,4 @@
-<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <Compile Include="Collections\PriorityQueue.fs" />
     <Compile Include="Collections\Queue.fs" />
@@ -16,11 +16,9 @@
     <Compile Include="Net\TcpConnection.fs" />
     <Compile Include="Net\UdpConnection.fs" />
     <Compile Include="Net\Server.fs" />
-    <Compile Include="IO\MemoryMappedFileChecksum.fs" />
+    <Compile Include="IO\InMemory\MemoryBuffer.fs" />
     <Compile Include="IO\MemoryMappedFilePartition.fs" />
     <Compile Include="IO\MemoryMappedFile.fs" />
-    <!--<Compile Include="Program.fs" />-->
     <EmbeddedResource Include="**\*.resx" />
-    <EmbeddedResource Include="compiler\resources\**\*" />
   </ItemGroup>
 </Project>

@@ -8,20 +8,6 @@ open MUDT.Diagnostics
 module HasherUnitTests =
   
   let cacheCost = 40960L
-  let createDefaultIHHashState() =
-    Hasher.createIHHashState(10)
-
-  let smallData = 1024 // 1KB
-  let mediumData = smallData * 1000 // 1MB
-  let largeData = mediumData * 1000 // 1GB 
-
-  let createData (size:int) =
-    let rand = new Random(5); // seed to create same data
-    [| for i in 1..size -> byte (rand.Next()) |]
-
-  let staticSmallData = createData(smallData)
-  let staticMediumData = createData(mediumData)
-  let staticLargeData = createData(largeData)
 
   let doHash data state =
     let startTime = DateTime.UtcNow
@@ -43,10 +29,16 @@ module HasherUnitTests =
     let md5 = Hasher.createMd5HashState false size
     doHash data md5
 
-  [<Fact>]
+  let getValues (op:int) =
+    match op with
+    | 3 -> Helper.GB, Helper.GBSize
+    | 2 -> Helper.MB, Helper.MBSize
+    | 1 | _ -> Helper.KB, Helper.KBSize
+
+  //[<Fact>]
   let ``Compare Memory Usage`` () =
     let iter = 100
-    let data, size = staticLargeData, largeData
+    let data, size = getValues(2)
     let usageComparison(i) =
       let ih = doIncrementalHashing(data, size)
       let backlog = doBacklogHashing(data, size)

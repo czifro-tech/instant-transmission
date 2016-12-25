@@ -1,0 +1,9 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Compile Include="Helper.fs" />
+    <Compile Include="HasherUnitTests.fs" />
+    <Compile Include="PortCheckerUnitTest.fs" />
+    <Compile Include="MemoryMappedFileUnitTest.fs" />
+    <EmbeddedResource Include="**\*.resx" />
+  </ItemGroup>
+</Project>

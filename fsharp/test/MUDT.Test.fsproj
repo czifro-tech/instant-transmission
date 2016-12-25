@@ -1,25 +1,13 @@
 ﻿<Project Sdk="FSharp.NET.Sdk;Microsoft.NET.Sdk" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <!--<Import Project="\usr\local\share\dotnet\sdk\1.0.0-preview4-004124\15.0\Microsoft.Common.props" />-->
-  <!--<Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" />-->
   
   <PropertyGroup>
     <TargetFramework>netcoreapp1.0</TargetFramework>
+    <RootNamespace>MUDT.Test</RootNamespace>
     <AssemblyName>MUDT.Test</AssemblyName>
     <OutputType>Exe</OutputType>
   </PropertyGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\src\MUDT.fsproj">
-      <Project>{3D40510C-631A-48E7-8750-09EFD5743571}</Project>
-      <Name>MUDT</Name>
-    </ProjectReference>
-  </ItemGroup>
-
-  <ItemGroup>
-    <Compile Include="HasherUnitTests.fs" />
-    <Compile Include="PortCheckerUnitTest.fs" />
-    <EmbeddedResource Include="**\*.resx" />
-  </ItemGroup>
+  <Import Project=".\MUDT.Test.compile.targets" />
 
   <ItemGroup>
     <PackageReference Include="Microsoft.NETCore.App" Version="1.0.1" />
@@ -30,6 +18,11 @@
     <PackageReference Include="FSharp.NET.Sdk" Version="1.0.0-beta-*">
       <PrivateAssets>All</PrivateAssets>
     </PackageReference>
+    <PackageReference Include="System.Runtime.Extensions" Version="4.3.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\src\MUDT.fsproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -37,22 +30,4 @@
       <Version>1.0.0-preview2-020000</Version>
     </DotNetCliToolReference>
   </ItemGroup>
-
-  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
-    <DefineConstants>$(DefineConstants);RELEASE</DefineConstants>
-  </PropertyGroup>
-  
-  <!--<Import Project="$(MSBuildToolsPath)\Microsoft.Common.targets" />-->
-  <ProjectExtensions>
-    <MonoDevelop>
-      <Properties>
-        <Policies>
-          <TextStylePolicy TabsToSpaces="False" RemoveTrailingWhitespace="True" NoTabsAfterNonTabs="False" EolMarker="Native" FileWidth="120" TabWidth="2" IndentWidth="2" inheritsSet="Mono" inheritsScope="text/plain" scope="text/x-fsharp" />
-          <FSharpFormattingPolicy scope="text/x-fsharp">
-            <DefaultFormat IndentOnTryWith="False" ReorderOpenDeclaration="False" SpaceAfterComma="True" SpaceAfterSemicolon="True" SpaceAroundDelimiter="True" SpaceBeforeArgument="True" SpaceBeforeColon="True" />
-          </FSharpFormattingPolicy>
-        </Policies>
-      </Properties>
-    </MonoDevelop>
-  </ProjectExtensions>
 </Project>
