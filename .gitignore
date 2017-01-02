@@ -11,3 +11,5 @@ bin/
 obj/
 .vscode/
 packages/
+.native/
+

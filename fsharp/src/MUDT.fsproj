@@ -10,11 +10,11 @@
   <Import Project=".\MUDT.compile.targets" />
 
   <ItemGroup>
-    <Content Include="../.native/MUDT.Native.Apple.dylib">
+    <Content Include="MUDT.Native.Apple.dylib">
       <PackagePath>runtimes/osx.10.10-x64/native/</PackagePath>
       <Pack>true</Pack>
     </Content>
-    <Content Include="../.native/MUDT.Native.Linux.dylib">
+    <Content Include="MUDT.Native.Linux.dylib">
       <PackagePath>runtimes/osx.10.10-x64/native/</PackagePath>
       <Pack>true</Pack>
     </Content>
