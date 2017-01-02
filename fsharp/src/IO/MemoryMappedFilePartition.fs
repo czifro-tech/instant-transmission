@@ -4,11 +4,14 @@ namespace MUDT.IO
   open System.IO
   open MUDT.Cryptography
   open MUDT.IO.InMemory
+  open System.Threading
 
   type MMFPartitionState =
     {
       mutable partitionHash : HashState;
       fileStream : FileStream;
+      isDisposed : bool;
+      writerLock : ReaderWriterLockSlim ref
       startPosition : int64;
       currentPosition : int64;
       endPosition : int64;
@@ -37,20 +40,32 @@ namespace MUDT.IO
                                   |])
       printfn "%s" res
 
+  type MMFPartitionStateConfig =
+    {
+      hashStateConfig : HashStateConfig;
+      fs : FileStream;
+      sharedLock : ReaderWriterLockSlim ref;
+      startPos : int64;
+      size : int64;
+      bufferCapacity : int64;
+    }
+
   module MMFPartition =
 
-    let createMMFPartitionState (hashStateConfig:HashStateConfig) (fs:FileStream) (startPos:int64) (size:int64) (bufferCapacity:int64) =
-      let memStream = MemoryBuffer(int(bufferCapacity))
-      fs.Seek(startPos, SeekOrigin.Begin) |> ignore
+    let createMMFPartitionState (config:MMFPartitionStateConfig) =
+      let memBuffer = MemoryBuffer(int(config.bufferCapacity))
+      config.fs.Seek(config.startPos, SeekOrigin.Begin) |> ignore
       {
-        partitionHash = Hasher.createHashState(hashStateConfig);
-        fileStream = fs;
-        startPosition = startPos;
-        currentPosition = startPos;
-        endPosition = size + startPos - 1L;
-        partitionSize = size;
-        buffer = memStream;
-        bufferCapacity = bufferCapacity;
+        partitionHash = Hasher.createHashState(config.hashStateConfig);
+        fileStream = config.fs;
+        isDisposed = false;
+        writerLock = config.sharedLock;
+        startPosition = config.startPos;
+        currentPosition = config.startPos;
+        endPosition = config.size + config.startPos - 1L;
+        partitionSize = config.size;
+        buffer = memBuffer;
+        bufferCapacity = config.bufferCapacity;
         bufferLength = 0L;
         bytesReadCounter = 0L;
         bytesWrittenCounter = 0L;
@@ -89,9 +104,11 @@ namespace MUDT.IO
         if toBuffer then
           state.buffer.WriteBytes(bytes)
         else
+          state.writerLock.Value.EnterWriteLock()
           state.fileStream.Write(bytes, 0, (Array.length bytes)) |> ignore
+          state.fileStream.Flush()
           state' <- { state' with bytesWrittenCounter = state'.bytesWrittenCounter + int64((Array.length bytes)) }
-          //printfn "Wrote %d bytes..." (Array.length bytes)
+          state.writerLock.Value.ExitWriteLock()
         return state'
       }
 
@@ -140,7 +157,6 @@ namespace MUDT.IO
           |> updateHash &state
           |> asyncWrite state false
           |> Async.RunSynchronously
-        state.fileStream.Flush()
         return { state with currentPosition = state.currentPosition + int64(len); 
                             bufferLength = state.bufferLength - int64(len) }
       }
@@ -157,7 +173,6 @@ namespace MUDT.IO
     let fullFlushBufferAsync (state:MMFPartitionState) =
       async {
         if state.bufferLength > 0L then
-          //printfn "Flushing remainder of buffer..."
           let len = state.bufferLength
           return! flushAsync (int(len)) state
         else
@@ -171,30 +186,24 @@ namespace MUDT.IO
         return! partialFlushBufferAsync { state with bufferLength = state.bufferLength + int64(Array.length bytes) }
       }
 
+    // fixed condition so that `readFromBufferAsync` will continue to return bytes until buffer is empty
     let feop (state:MMFPartitionState) =
-      state.partitionSize = (state.currentPosition - state.startPosition)
+      state.partitionSize = (state.currentPosition - state.startPosition) && state.bufferLength = 0L
 
     let readFromBufferAsync (state:MMFPartitionState) (count:int) =
       async {
         let take = 
-          [| state.bufferLength; state.endPosition - (state.currentPosition - state.startPosition); int64(count)|]
-          |> Array.min |> int
+          [| state.bufferLength; int64(count)|]
+          |> Array.min |> int // count is guaranteed to be int, so no value will exceed size of int
         if feop(state) then return ([||], state) // redundancy check
         else
           let! newState = refillBufferAsync state
           let! bytes, ns = asyncRead newState true take
           return (bytes, { ns with bufferLength = ns.bufferLength - int64(take) })
       }
-
-    let drainBufferAsync (state:MMFPartitionState) =
-      async {
-        let take = int(state.bufferLength)
-        if take = 0 then
-          return ([||], state)
-        else
-          let! bytes, ns = asyncRead state true take
-          return (bytes, { ns with bufferLength = ns.bufferLength - int64(take) })
-      }
-
     let initializeReadBufferAsync (state:MMFPartitionState) =
       copyFromFileAsync state (int(state.bufferCapacity))
+
+    let dispose (state:MMFPartitionState) =
+      state.fileStream.Dispose()
+      { state with isDisposed = true }

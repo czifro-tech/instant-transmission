@@ -17,6 +17,7 @@
     <Compile Include="Net\UdpConnection.fs" />
     <Compile Include="Net\Server.fs" />
     <Compile Include="IO\InMemory\MemoryBuffer.fs" />
+    <Compile Include="IO\FileStreamHelper.fs" />
     <Compile Include="IO\MemoryMappedFilePartition.fs" />
     <Compile Include="IO\MemoryMappedFile.fs" />
     <EmbeddedResource Include="**\*.resx" />

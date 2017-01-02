@@ -26,13 +26,13 @@ namespace MUDT.Test
                                   |])
       printfn "%s" res
 
-    let createConfig (file':FileInfo) =
-      let bufferCapacity' = ((file'.Length / 4L) / 100L)
+    let createConfig (partitionCount:int) (file':FileInfo) =
+      let bufferCapacity' = ((file'.Length / int64(partitionCount)) / 100L)
       {
         hashStateConfig = HashStateConfig.BackloggingMd5Config(int(bufferCapacity'/10L))
         directory = file'.Directory.FullName;
         file = file';
-        partitionCount = 4
+        partitionCount = partitionCount
         bufferCapacity = bufferCapacity'
       }
     
@@ -40,16 +40,18 @@ namespace MUDT.Test
 
     [<Fact>]
     let ``Speed Test Non Network File Transfer With No Integrity``() =
+      let testStart = DateTime.UtcNow
       Helper.use4GBMemoryLimit()
+      let partitionCount = 12
       let input = 
         (MemoryMappedFile.tryGetFileInfo("/Users/czifro/Dropbox/Der Doppelganger copy.mp4")).Value
-        |> createConfig
+        |> createConfig partitionCount
         |> MemoryMappedFile.partitionFile true
       let output = 
         (MemoryMappedFile.createFileAsync ("/Users/czifro/.mudt/Der Doppelganger copy.mp4") input.fileInfo.Length)
         |> Async.RunSynchronously |> ignore
         (MemoryMappedFile.tryGetFileInfo("/Users/czifro/.mudt/Der Doppelganger copy.mp4")).Value
-        |> createConfig
+        |> createConfig partitionCount
         |> MemoryMappedFile.partitionFile false
 
       let asyncHandle (_in:MMFPartitionState) (_out:MMFPartitionState) = async {
@@ -61,25 +63,28 @@ namespace MUDT.Test
           i <- ni
           let! no = writeToBufferAsync o bytes
           o <- no
-        let! (bytes, ni) = drainBufferAsync i
-        i <- ni
-        let! no = writeToBufferAsync o bytes
-        o <- no
-        return! fullFlushBufferAsync o
+        let! no = fullFlushBufferAsync o
+        // dispose of file handle
+        i <- dispose i
+        o <- dispose no
+        return o
       }
       let startTime = DateTime.UtcNow
-      let asyncHandles = [| for i in 0..3 -> asyncHandle input.partitions.[i] output.partitions.[i] |]
-      let results = asyncHandles |> Array.map(fun x -> x |> Async.RunSynchronously) : MMFPartitionState[]
+      let asyncHandles = [| for i in 0..partitionCount-1 -> Async.StartChild(asyncHandle input.partitions.[i] output.partitions.[i]) |]
+      let results = { output with partitions = asyncHandles |> Array.map(fun x -> (x |> Async.RunSynchronously) |> Async.RunSynchronously) }
+      MemoryMappedFile.finalize results
       let endTime = DateTime.UtcNow
       // let pprint (p:MMFPartitionState) = p.PrintInfo()
       // printfn "input partitions:"
       // input.partitions |> Array.iter pprint
       // printfn "output partitions:"
       // output.partitions |> Array.iter pprint
-      let size = results |> Array.sumBy(fun x -> x.bytesWrittenCounter)
+      let size = results.partitions |> Array.sumBy(fun x -> x.bytesWrittenCounter)
+      let testEnd = DateTime.UtcNow
       let res = String.Join("\n", [|
                                     sprintf "File Name => %s" input.fileInfo.Name;
                                     sprintf "File Size => %d bytes" size;
-                                    sprintf "Time taken to create => %d ms" (endTime - startTime).Milliseconds
+                                    sprintf "Transfer Time => %d ms" (endTime - startTime).Milliseconds
+                                    sprintf "Test Time => %d ms" (testEnd - testStart).Milliseconds
                                   |])
       printfn "%s" res

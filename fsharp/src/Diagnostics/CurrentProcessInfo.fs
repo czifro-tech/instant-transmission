@@ -4,6 +4,7 @@ namespace MUDT.Diagnostics
   open MUDT.Diagnostics
 
   module CurrentProcessInfo =
+    open System.Runtime.InteropServices
 
     // Caching provides minimal memory impact, it allows for refreshing upon retrieval
     // A non cached back to back call on printProcessMemoryInfo2()
@@ -43,3 +44,10 @@ namespace MUDT.Diagnostics
       printfn "Process Virtual Memory Allocation: %d" cp.VirtualMemorySize64
       printfn "Process Virtual Memory Usage: %d" cp.PeakVirtualMemorySize64
       printfn "Process Private Memory Allocation: %d" cp.PrivateMemorySize64
+
+    type Platform = | MacOS | Linux | Windows
+
+    let getPlatform() =
+      if RuntimeInformation.IsOSPlatform(OSPlatform.OSX) then MacOS
+      elif RuntimeInformation.IsOSPlatform(OSPlatform.Linux) then Linux
+      else Windows

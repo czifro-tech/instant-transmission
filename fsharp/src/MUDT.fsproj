@@ -1,13 +1,24 @@
 ﻿<Project Sdk="FSharp.NET.Sdk;Microsoft.NET.Sdk" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   
   <PropertyGroup>
-    <TargetFramework>netstandard1.6</TargetFramework>
+    <TargetFramework>netstandard1.7</TargetFramework>
     <RootNamespace>MUDT</RootNamespace>
     <AssemblyName>MUDT</AssemblyName>
     <OutputType>Library</OutputType>
   </PropertyGroup>
 
   <Import Project=".\MUDT.compile.targets" />
+
+  <ItemGroup>
+    <Content Include="../.native/MUDT.Native.Apple.dylib">
+      <PackagePath>runtimes/osx.10.10-x64/native/</PackagePath>
+      <Pack>true</Pack>
+    </Content>
+    <Content Include="../.native/MUDT.Native.Linux.dylib">
+      <PackagePath>runtimes/osx.10.10-x64/native/</PackagePath>
+      <Pack>true</Pack>
+    </Content>
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="NETStandard.Library" Version="1.6" />
@@ -22,6 +33,7 @@
     <PackageReference Include="System.Diagnostics.Process" Version="4.3.0" />
     <PackageReference Include="System.Security.Cryptography.Algorithms" Version="4.3.0" />
     <PackageReference Include="System.Runtime.Extensions" Version="4.3.0" />
+    <PackageReference Include="System.IO.FileSystem" Version="4.3.0" />
   </ItemGroup>
 
   <ItemGroup>
