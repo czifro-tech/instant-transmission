@@ -1,8 +1,8 @@
 // This contains operations that are common between
 //  the platform specific IO operations
 
-#include <assert.h>
-#include <errno.h>
+#include "pal_utilities.h"
+
 #include <fcntl.h>
 #include <stdlib.h>
 
@@ -32,6 +32,31 @@ enum
     PAL_O_EXCL = 0x0040,    // When combined with CREAT, fails if file already exists
     PAL_O_TRUNC = 0x0080,   // Truncate file to length 0 if it already exists
     PAL_O_SYNC = 0x0100,    // Block writes call will block until physically written
+};
+
+/**
+ * Constants passed to posix_advise to give hints to the kernel about the type of I/O
+ * operations that will occur.
+ */
+enum FileAdvice : int32_t
+{
+    PAL_POSIX_FADV_NORMAL = 0,     /* no special advice, the default value */
+    PAL_POSIX_FADV_RANDOM = 1,     /* random I/O access */
+    PAL_POSIX_FADV_SEQUENTIAL = 2, /* sequential I/O access */
+    PAL_POSIX_FADV_WILLNEED = 3,   /* will need specified pages */
+    PAL_POSIX_FADV_DONTNEED = 4,   /* don't need the specified pages */
+    PAL_POSIX_FADV_NOREUSE = 5,    /* data will only be acessed once */
+};
+
+/**
+ * Constants from sys/file.h for lock types
+ */
+enum LockOperations : int32_t
+{
+    PAL_LOCK_SH = 1, /* shared lock */
+    PAL_LOCK_EX = 2, /* exclusive lock */
+    PAL_LOCK_NB = 4, /* don't block when locking*/
+    PAL_LOCK_UN = 8, /* unlock */
 };
 
 /**

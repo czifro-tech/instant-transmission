@@ -12,3 +12,7 @@ endif ()
 check_function_exists(
     posix_fadvise
     HAVE_POSIX_ADVISE)
+
+configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/Common/pal_config.h.in
+    ${CMAKE_CURRENT_BINARY_DIR}/Common/pal_config.h)
