@@ -149,9 +149,8 @@ namespace MUDT.IO
       FileOptions.RandomAccess ||| FileOptions.Asynchronous
 
     let private commonOpenFlags (fileOptions:FileOptions) (access:FileAccess) =
-      let fileOptions = FileOptions.RandomAccess ||| FileOptions.Asynchronous
 
-      let flags = OpenFlagsHelper.createFrom FileMode.OpenOrCreate access fileOptions
+      let flags = OpenFlagsHelper.createFrom FileMode.OpenOrCreate access commonFileOptions
 
       match getPlatform() with
       | MacOS -> flags ||| LanguagePrimitives.EnumOfValue 0x3000
@@ -171,7 +170,7 @@ namespace MUDT.IO
         raise (Exception("Platform not supported"))
       else
         init handleOption.Value share
-        new FileStream(handleOption.Value, FileAccess.Read, bufferSize)
+        new FileStream(handleOption.Value, FileAccess.Read, bufferSize, true)
 
     let private openFileInReadMode (filename:string) (bufferSize:int) =
       let openFlags = commonOpenFlags commonFileOptions FileAccess.Read

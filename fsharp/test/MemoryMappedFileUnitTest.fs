@@ -40,17 +40,21 @@ namespace MUDT.Test
 
     [<Fact>]
     let ``Speed Test Non Network File Transfer With No Integrity``() =
+      printf "Enter full path of input file: "
+      let if' = Console.ReadLine() // "/Users/czifro/Dropbox/doesnotexist.mp4"
+      printf "Enter full path of output file: "
+      let of' = Console.ReadLine() // "/Users/czifro/.mudt/Der Doppelganger copy.mp4"
       let testStart = DateTime.UtcNow
       Helper.use4GBMemoryLimit()
       let partitionCount = 12
       let input = 
-        (MemoryMappedFile.tryGetFileInfo("/Users/czifro/Dropbox/Der Doppelganger copy.mp4")).Value
+        (MemoryMappedFile.tryGetFileInfo(if')).Value
         |> createConfig partitionCount
         |> MemoryMappedFile.partitionFile true
       let output = 
-        (MemoryMappedFile.createFileAsync ("/Users/czifro/.mudt/Der Doppelganger copy.mp4") input.fileInfo.Length)
+        (MemoryMappedFile.createFileAsync (of') input.fileInfo.Length)
         |> Async.RunSynchronously |> ignore
-        (MemoryMappedFile.tryGetFileInfo("/Users/czifro/.mudt/Der Doppelganger copy.mp4")).Value
+        (MemoryMappedFile.tryGetFileInfo(of')).Value
         |> createConfig partitionCount
         |> MemoryMappedFile.partitionFile false
 
