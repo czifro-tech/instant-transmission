@@ -35,7 +35,6 @@ module HasherUnitTests =
     | 2 -> Helper.MB, Helper.MBSize
     | 1 | _ -> Helper.KB, Helper.KBSize
 
-  //[<Fact>]
   let ``Compare Memory Usage`` () =
     let iter = 100
     let data, size = getValues(2)
@@ -80,28 +79,7 @@ module HasherUnitTests =
     printfn "%s" res
     Assert.Equal(true, true)
 
-
-  // [<Fact>]
-  // let ``Test at once verses in stages should not match`` () =
-  //   let ih1 = createDefaultIHHashState()
-  //   let ih2 = createDefaultIHHashState()
-  //   let data = createData(smallData)
-  //   let hash1 = (Hasher.computeHash ih1 data) |> Hasher.finalizeHash
-  //   let doHash2 (d:byte[]) s e (state:HashState) =
-  //      d.[s..e]
-  //      |> Hasher.computeHash state
-  //   let offset = (Array.length data) / 4
-  //   let hash2 = 
-  //     ih2
-  //     |> doHash2 data (0) (offset-1)
-  //     |> doHash2 data (offset) (2*offset-1)
-  //     |> doHash2 data (2*offset) (2*offset-1)
-  //     |> doHash2 data (3*offset) (4*offset-1)
-  //     |> Hasher.finalizeHash
-
-  //   let mutable dontMatch = false
-  //   if (Array.length hash1) = (Array.length hash2) then
-  //     Array.iter2(fun a b -> if a <> b then dontMatch <- true) hash1 hash2
-  //   else
-  //     dontMatch <- true
-  //   Assert.Equal(true, dontMatch)
+  let testRunner op =
+    match op with
+    | "1" | "x" -> ``Compare Memory Usage``()
+    | _ -> failwith "Invalid optiont"

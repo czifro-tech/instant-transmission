@@ -38,10 +38,9 @@ namespace MUDT.Test
     
     open MUDT.IO.MMFPartition
 
-    [<Fact>]
     let ``Speed Test Non Network File Transfer With No Integrity``() =
       printf "Enter full path of input file: "
-      let if' = Console.ReadLine() // "/Users/czifro/Dropbox/doesnotexist.mp4"
+      let if' = Console.ReadLine() // "/Users/czifro/Dropbox/Der Doppelganger copy.mp4"
       printf "Enter full path of output file: "
       let of' = Console.ReadLine() // "/Users/czifro/.mudt/Der Doppelganger copy.mp4"
       let testStart = DateTime.UtcNow
@@ -92,3 +91,11 @@ namespace MUDT.Test
                                     sprintf "Test Time => %d ms" (testEnd - testStart).Milliseconds
                                   |])
       printfn "%s" res
+
+
+    let testRunner op =
+      match op with 
+      | "1" -> ``Speed Test File Creation``()
+      | "2" -> ``Speed Test Non Network File Transfer With No Integrity``()
+      | "x" -> ``Speed Test File Creation``(); ``Speed Test Non Network File Transfer With No Integrity``()
+      | _ -> failwith "Invalid option"
