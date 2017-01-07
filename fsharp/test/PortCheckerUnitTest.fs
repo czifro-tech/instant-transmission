@@ -14,7 +14,9 @@
       let endTime = DateTime.UtcNow
       printfn "Port check took %d ms" (endTime - startTime).Milliseconds
 
+    let private tests() =
+      [|
+        ``Speed Test``
+      |]
     let testRunner op =
-      match op with
-      | "1" | "x" -> ``Speed Test``()
-      | _ -> failwith "Invalid option"
+      Helper.testRunner tests () op

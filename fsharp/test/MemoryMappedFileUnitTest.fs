@@ -92,10 +92,11 @@ namespace MUDT.Test
                                   |])
       printfn "%s" res
 
+    let private tests() =
+      [|
+        ``Speed Test File Creation``
+        ``Speed Test Non Network File Transfer With No Integrity``
+      |]
 
     let testRunner op =
-      match op with 
-      | "1" -> ``Speed Test File Creation``()
-      | "2" -> ``Speed Test Non Network File Transfer With No Integrity``()
-      | "x" -> ``Speed Test File Creation``(); ``Speed Test Non Network File Transfer With No Integrity``()
-      | _ -> failwith "Invalid option"
+      Helper.testRunner tests () op

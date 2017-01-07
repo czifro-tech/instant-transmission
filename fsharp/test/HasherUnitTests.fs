@@ -79,7 +79,10 @@ module HasherUnitTests =
     printfn "%s" res
     Assert.Equal(true, true)
 
+  let private tests() =
+    [|
+      ``Compare Memory Usage``
+    |]
+
   let testRunner op =
-    match op with
-    | "1" | "x" -> ``Compare Memory Usage``()
-    | _ -> failwith "Invalid optiont"
+    Helper.testRunner tests () op

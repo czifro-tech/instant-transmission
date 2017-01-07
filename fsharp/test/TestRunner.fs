@@ -3,7 +3,7 @@ namespace MUDT.Test
 module TestRunner =
 
   open System
-  open System.Linq
+  open System.Text.RegularExpressions
 
   let testRunners() =
     [|
@@ -13,19 +13,21 @@ module TestRunner =
     |]
 
   let parseArgv argv =
-    match argv with
-    | "x" | "x.x" -> ("x", "x")
-    | "1" | "1.1" | "1.x" -> ("1", "x")
-    | "2" | "2.1" | "2.x" -> ("2", "x")
-    | "3" | "3.x" -> ("3", "x")
-    | "3.1" | "3.2" -> ("3", string(argv.[2]))
-    | _ -> failwith "Invalid arg"
+    let doBoundsCheck i l u = if i < l || i > u then failwith "Invalid arg"
+    if argv = "x" || argv = "x.x" then "x", "x"
+    else
+      let dot = Array.tryFindIndex(fun x -> x = '.') (argv.ToCharArray())
+      if dot.IsSome then
+        let major, minor = int(string(argv.[0..dot.Value-1])), string(argv.[dot.Value+1..])
+        doBoundsCheck major 1 3
+        string(major), minor
+      else
+        doBoundsCheck (int(argv)) 1 3
+        argv, "x"
 
   [<EntryPoint>]
   let main argv =
     printfn "Argv: %A" argv
-    let testMod, test = parseArgv argv.[0]
-    match testMod with
-    | "x" -> () |> testRunners |> Array.iter(fun runner -> runner test)
-    | _ -> (testRunners()).[int(testMod)-1] test
+    let testMod, testOp = parseArgv argv.[0]
+    Helper.testRunner testRunners testOp testMod
     0

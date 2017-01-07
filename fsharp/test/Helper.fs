@@ -20,3 +20,11 @@ namespace MUDT.Test
 
     let use4GBMemoryLimit() =
       CurrentProcessInfo.setMemoryLimit(int64(GBSize) * 4L)
+
+    let testRunner tests testArg op =
+      match op with
+      | "x" -> () |> tests |> Array.iter(fun test -> test testArg)
+      | _ -> 
+        if Array.length (() |> tests) < int(op) then
+          failwith "Invalid option"
+        (tests()).[int(op)-1] testArg
