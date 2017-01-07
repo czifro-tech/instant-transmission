@@ -1,21 +1,24 @@
 ﻿<Project Sdk="FSharp.NET.Sdk;Microsoft.NET.Sdk" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   
   <PropertyGroup>
+    <Version>1.0.0-alpha</Version>
     <TargetFramework>netstandard1.7</TargetFramework>
     <RootNamespace>MUDT</RootNamespace>
     <AssemblyName>MUDT</AssemblyName>
     <OutputType>Library</OutputType>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <RuntimeIdentifiers>osx.10.11-x64;ubuntu.14.04-x64</RuntimeIdentifiers>
   </PropertyGroup>
 
   <Import Project=".\MUDT.compile.targets" />
 
   <ItemGroup>
-    <Content Include="MUDT.Native.Apple.dylib">
-      <PackagePath>runtimes/osx.10.10-x64/native/</PackagePath>
+    <Content Include="../.native/MUDT.Native.Apple.dylib">
+      <PackagePath>runtimes/osx.10.11-x64</PackagePath>
       <Pack>true</Pack>
     </Content>
-    <Content Include="MUDT.Native.Linux.dylib">
-      <PackagePath>runtimes/osx.10.10-x64/native/</PackagePath>
+    <Content Include="../.native/MUDT.Native.Linux.dylib">
+      <PackagePath>runtimes/osx.10.11-x64;runtimes/ubuntu.14.04-x64</PackagePath>
       <Pack>true</Pack>
     </Content>
   </ItemGroup>

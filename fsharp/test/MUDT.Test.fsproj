@@ -5,9 +5,22 @@
     <RootNamespace>MUDT.Test</RootNamespace>
     <AssemblyName>MUDT.Test</AssemblyName>
     <OutputType>Exe</OutputType>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <RuntimeIdentifiers>osx.10.11-x64;ubuntu.14.04-x64</RuntimeIdentifiers>
   </PropertyGroup>
 
   <Import Project=".\MUDT.Test.compile.targets" />
+
+  <ItemGroup>
+    <Content Include="../.native/MUDT.Native.Apple.dylib">
+      <PackagePath>runtimes/osx.10.11-x64</PackagePath>
+      <Pack>true</Pack>
+    </Content>
+    <Content Include="../.native/MUDT.Native.Linux.dylib">
+      <PackagePath>runtimes/osx.10.11-x64;runtimes/ubuntu.14.04-x64</PackagePath>
+      <Pack>true</Pack>
+    </Content>
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.NETCore.App" Version="1.0.1" />
@@ -20,11 +33,12 @@
     </PackageReference>
     <PackageReference Include="System.Runtime.Extensions" Version="4.3.0" />
     <PackageReference Include="System.IO.FileSystem" Version="4.3.0" />
+    <PackageReference Include="MUDT" Version="1.0.0-alpha" />
   </ItemGroup>
 
-  <ItemGroup>
+  <!--<ItemGroup>
     <ProjectReference Include="..\src\MUDT.fsproj" />
-  </ItemGroup>
+  </ItemGroup>-->
 
   <ItemGroup>
     <DotNetCliToolReference Include="dotnet-compile-fsc">
