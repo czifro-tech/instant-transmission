@@ -1,0 +1,30 @@
+{
+    "version": "1.0.0-*",
+    "buildOptions":{
+        "allowUnsafe":true
+    },
+    "dependencies": {
+        "NETStandard.Library": "1.6.0",
+        "Microsoft.NETCore.Runtime.CoreCLR": "1.0.2",
+        "Microsoft.NETCore.DotNetHostPolicy":  "1.0.1"
+    },
+    "frameworks": {
+        "netstandard1.6": { }
+     },
+    "runtimes":{
+        "osx.10.11-x64":{},
+        "ubuntu.14.04-x64":{}
+    },
+    "packOptions":{
+        "files":{
+            "mappings":{
+                "runtimes/osx.10.11-x64/native":{
+                    "includeFiles":[ "MUDT.Native.Apple.dylib", "MUDT.Native.Linux.dylib" ]
+                },
+                "runtimes/ubuntu.14.04-x64/native":{
+                    "includeFiles":[ "MUDT.Native.Linux.dylib" ]
+                }
+            }            
+        }
+    }
+}

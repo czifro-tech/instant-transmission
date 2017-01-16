@@ -72,8 +72,8 @@ namespace MUDT.IO
       let finalPartitionLength = partitionLength + remaining
       let sharedLock' = ref (new ReaderWriterLockSlim())
       let fileBufferSize = 64 * 1024//int(config.bufferCapacity) / 2
-      // let noBuffering : FileOptions = LanguagePrimitives.EnumOfValue 0x20000000
-      // let fileOptions = noBuffering ||| FileOptions.RandomAccess ||| FileOptions.WriteThrough
+      let noBuffering : FileOptions = LanguagePrimitives.EnumOfValue 0x20000000
+      let fileOptions = noBuffering ||| FileOptions.RandomAccess ||| FileOptions.WriteThrough
 
       let openFile _config startPos' len' (open':unit->FileStream) =
         let config' = {
@@ -86,11 +86,11 @@ namespace MUDT.IO
         }
         MMFPartition.createMMFPartitionState config'
       let read() =
-        FileStreamHelper.getPlatformSpecificFileStream config.file.FullName FileAccess.Read fileBufferSize
-        //new FileStream(config.file.FullName, FileMode.Open, FileAccess.Read, FileShare.Read, fileBufferSize, fileOptions)
+        //FileStreamHelper.getPlatformSpecificFileStream config.file.FullName FileAccess.Read fileBufferSize
+        new FileStream(config.file.FullName, FileMode.Open, FileAccess.Read, FileShare.Read, fileBufferSize, fileOptions)
       let write() =
-        FileStreamHelper.getPlatformSpecificFileStream config.file.FullName FileAccess.Write fileBufferSize
-        //new FileStream(config.file.FullName, FileMode.Open, FileAccess.Write, FileShare.Write, fileBufferSize, fileOptions)
+        //FileStreamHelper.getPlatformSpecificFileStream config.file.FullName FileAccess.Write fileBufferSize
+        new FileStream(config.file.FullName, FileMode.Open, FileAccess.Write, FileShare.Write, fileBufferSize, fileOptions)
       {
         partitions = [| for i in 0..config.partitionCount-1 -> 
                           let startPos = int64(i) * partitionLength

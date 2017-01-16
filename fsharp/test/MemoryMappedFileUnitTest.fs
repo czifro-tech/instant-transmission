@@ -39,13 +39,14 @@ namespace MUDT.Test
     open MUDT.IO.MMFPartition
 
     let ``Speed Test Non Network File Transfer With No Integrity``() =
+      printfn "Running ``Speed Test Non Network File Transfer With No Integrity``..."
       printf "Enter full path of input file: "
       let if' = Console.ReadLine() // "/Users/czifro/Dropbox/Der Doppelganger copy.mp4"
       printf "Enter full path of output file: "
       let of' = Console.ReadLine() // "/Users/czifro/.mudt/Der Doppelganger copy.mp4"
       let testStart = DateTime.UtcNow
       Helper.use4GBMemoryLimit()
-      let partitionCount = 12
+      let partitionCount = 1
       let input = 
         (MemoryMappedFile.tryGetFileInfo(if')).Value
         |> createConfig partitionCount
@@ -94,8 +95,8 @@ namespace MUDT.Test
 
     let private tests() =
       [|
-        ``Speed Test File Creation``
-        ``Speed Test Non Network File Transfer With No Integrity``
+        ``Speed Test File Creation``;
+        ``Speed Test Non Network File Transfer With No Integrity``;
       |]
 
     let testRunner op =

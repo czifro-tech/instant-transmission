@@ -18,8 +18,12 @@ namespace MUDT.Test
     let MB = createData(MBSize)
     let GB = createData(GBSize)
 
+    /// This is used for MMF
     let use4GBMemoryLimit() =
       CurrentProcessInfo.setMemoryLimit(int64(GBSize) * 4L)
+
+    let timeMemTickTock() =
+      DateTime.UtcNow, CurrentProcessInfo.totalUsedPhysicalMemory()
 
     let testRunner tests testArg op =
       match op with

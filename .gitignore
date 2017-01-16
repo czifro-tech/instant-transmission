@@ -12,4 +12,4 @@ obj/
 .vscode/
 packages/
 .native/
-
+*.docx

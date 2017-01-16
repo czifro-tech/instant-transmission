@@ -33,12 +33,12 @@
     </PackageReference>
     <PackageReference Include="System.Runtime.Extensions" Version="4.3.0" />
     <PackageReference Include="System.IO.FileSystem" Version="4.3.0" />
-    <PackageReference Include="MUDT" Version="1.0.0-alpha" />
+    <!--<PackageReference Include="MUDT" Version="1.0.0-alpha" />-->
   </ItemGroup>
 
-  <!--<ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\src\MUDT.fsproj" />
-  </ItemGroup>-->
+  </ItemGroup>
 
   <ItemGroup>
     <DotNetCliToolReference Include="dotnet-compile-fsc">
