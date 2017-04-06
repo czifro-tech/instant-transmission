@@ -2,18 +2,33 @@ namespace MUDT.Cryptography
 
   open System.Security.Cryptography
 
+  type Checksum =
+    {
+      checksum : byte[];
+      positionInSource : int64;
+    }
+
   type HashState =
     {
       isIncremental : bool;
       ih : IncrementalHash;
       md5 : MD5;
-      checksums : byte[];
+      checksums : Checksum[];
       isBacklogging : bool;
       backlog : byte[];
       backlogLimit : int;
       incrementalCount : int;
       incrementalLimit : int;
     }
+
+    static member internal AddChecksum checksums (bytes:byte[]) =
+      let pos =
+        if Array.isEmpty checksums then
+          0L
+        else
+          (Array.last checksums).positionInSource + int64(Array.length bytes)
+      let checksum = { checksum = bytes; positionInSource = pos }
+      Array.append checksums [| checksum |]
 
   type HashStateConfig =
     {
@@ -94,7 +109,7 @@ namespace MUDT.Cryptography
         //  then we can do solid paging, or, just backlog.
         let diff = state'.backlogLimit - (Array.length state'.backlog)
         state' <- { state' with 
-                      checksums = Array.append state'.checksums (state'.md5.ComputeHash(Array.append state'.backlog bytes.[..diff-1])); 
+                      checksums = HashState.AddChecksum state'.checksums (state'.md5.ComputeHash(Array.append state'.backlog bytes.[..diff-1])) ;
                       backlog = [||] }
         let numberOfBlocks = float32(len - diff) / float32(state'.backlogLimit) // This should divide evenly, otherwise 0 < numberOfBlocks < 1
         if numberOfBlocks < float32(1.0) then
@@ -104,7 +119,7 @@ namespace MUDT.Cryptography
             let startPos, endPos = diff + (i*state'.backlogLimit), diff + (i*state'.backlogLimit+(state'.backlogLimit-1))
             state' <- {
                         state' with
-                          checksums = Array.append state'.checksums (state'.md5.ComputeHash(bytes.[startPos..endPos]))
+                          checksums = HashState.AddChecksum state'.checksums (state'.md5.ComputeHash(bytes.[startPos..endPos]))
                       }
       state'
         
@@ -114,7 +129,7 @@ namespace MUDT.Cryptography
       else
         {
           state with
-            checksums = Array.append state.checksums (state.md5.ComputeHash(bytes))
+            checksums = HashState.AddChecksum state.checksums (state.md5.ComputeHash(bytes))
         }
 
     let private doIHCompute (state:HashState) (bytes:byte[]) =
@@ -144,7 +159,7 @@ namespace MUDT.Cryptography
             endPos <- startPos + (state'.incrementalLimit - state'.incrementalCount)
             state' <- { state' with incrementalCount = 0 }
           state'.ih.AppendData(bytes.[startPos..endPos])
-          state' <- { state' with checksums = Array.append state'.checksums (state'.ih.GetHashAndReset()) }
+          state' <- { state' with checksums = HashState.AddChecksum state'.checksums (state'.ih.GetHashAndReset()) }
 
         if overage > 0.0 then 
           let startPos, endPos = blockCount*state'.incrementalLimit, len-1
@@ -161,20 +176,21 @@ namespace MUDT.Cryptography
 
     let private doMd5Finalize (state:HashState) =
       if state.isBacklogging && (Array.length state.backlog) > 0 then
-        (state.md5.ComputeHash(state.backlog))
-        |> Array.append state.checksums
+        HashState.AddChecksum state.checksums (state.md5.ComputeHash(state.backlog))
       else
         state.checksums
 
     let private doIHFinalize (state:HashState) =
       if state.incrementalCount > 0 then
-        (state.ih.GetHashAndReset())
-        |> Array.append state.checksums
+        HashState.AddChecksum state.checksums (state.ih.GetHashAndReset())
       else
         state.checksums
 
     let finalizeHash (state:HashState) =
-      if state.isIncremental then
+      (if state.isIncremental then
         doIHFinalize state
       else
-        doMd5Finalize state
+        doMd5Finalize state)
+      |> Array.sortBy(fun x -> x.positionInSource)
+      |> Array.map(fun x -> x.checksum)
+      |> Array.concat
