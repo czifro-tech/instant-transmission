@@ -85,7 +85,6 @@ namespace MUDT.IO
 
     let private asyncRead (state:MMFPartitionState) (fromBuffer:bool) (count:int) =
       async {
-        //printfn "Reading bytes %s..." (if fromBuffer then "from buffer" else "from file")
         let mutable bytes = [||]
         let mutable state' = state
         if fromBuffer then
@@ -99,7 +98,6 @@ namespace MUDT.IO
 
     let private asyncWrite (state:MMFPartitionState) (toBuffer:bool) (bytes:byte[]) =
       async {
-        //printfn "Writing bytes %s..." (if toBuffer then "to buffer" else "to file")
         let mutable state' = state
         if toBuffer then
           state.buffer.WriteBytes(bytes)
@@ -184,6 +182,17 @@ namespace MUDT.IO
       async {
         do! state.buffer.AsyncWrite(bytes)
         return! partialFlushBufferAsync { state with bufferLength = state.bufferLength + int64(Array.length bytes) }
+      }
+
+    let writeStraightToFileAsync (stat:MMFPartitionState) (bytes:byte[]) =
+      async {
+        let mutable state = stat
+        state <-
+          bytes
+          |> updateHash &state
+          |> asyncWrite state false
+          |> Async.RunSynchronously
+        return { state with currentPosition = state.currentPosition + int64(Array.length bytes); }
       }
 
     // fixed condition so that `readFromBufferAsync` will continue to return bytes until buffer is empty
