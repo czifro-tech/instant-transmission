@@ -7,19 +7,23 @@
     <Compile Include="Utilities\TypeUtility.fs" />
     <Compile Include="Utilities\ConversionUtility.fs" />
     <Compile Include="Cryptography\Hasher.fs" />
-    <Compile Include="Net\Protocol\TcpPacket.fs" />
-    <Compile Include="Net\Protocol\TcpByteComposer.fs" />
-    <Compile Include="Net\Protocol\TcpByteParser.fs" />
-    <Compile Include="Net\Protocol\UdpPacket.fs" />
-    <Compile Include="Net\Sockets\Socket.fs" />
-    <Compile Include="Net\PortChecker.fs" />
-    <Compile Include="Net\TcpConnection.fs" />
-    <Compile Include="Net\UdpConnection.fs" />
-    <Compile Include="Net\Server.fs" />
     <Compile Include="IO\InMemory\MemoryBuffer.fs" />
     <Compile Include="IO\FileStreamHelper.fs" />
     <Compile Include="IO\MemoryMappedFilePartition.fs" />
     <Compile Include="IO\MemoryMappedFile.fs" />
+    <Compile Include="Net\ProtocolV1\TcpPacket.fs" />
+    <Compile Include="Net\ProtocolV1\TcpByteComposer.fs" />
+    <Compile Include="Net\ProtocolV1\TcpByteParser.fs" />
+    <Compile Include="Net\ProtocolV1\UdpPacket.fs" />
+    <Compile Include="Net\ProtocolV2\TcpPacketV2.fs" />
+    <Compile Include="Net\ProtocolV2\TcpRawMessageComposer.fs" />
+    <Compile Include="Net\ProtocolV2\TcpRawMessageParser.fs" />
+    <Compile Include="Net\Sockets\Socket.fs" />
+    <Compile Include="Net\PortChecker.fs" />
+    <Compile Include="Net\TcpConnection.fs" />
+    <Compile Include="Net\UdpConnection.fs" />
+    <Compile Include="Net\ProtocolV2\FTP.fs" />
+    <Compile Include="Net\Server.fs" />
     <EmbeddedResource Include="**\*.resx" />
   </ItemGroup>
 </Project>
