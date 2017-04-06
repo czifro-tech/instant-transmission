@@ -1,17 +1,5 @@
 namespace MUDT.IO.InMemory
 
-  // open System.IO
-
-  // module MemoryStreamExtensions =
-
-  //   type MemoryStream with
-
-  //     member x.ReadBytes(count:int) =
-  //       [| for i in 0..count-1 -> x.ReadByte() |> byte |]
-
-  //     member x.WriteBytes(bytes:byte[]) =
-  //       bytes |> Array.iter(fun b -> x.WriteByte(b))
-
   open MUDT.Utilities.TypeUtility
 
   type MemoryBuffer(capacity:int) =

@@ -13,3 +13,6 @@ obj/
 packages/
 .native/
 *.docx
+*.pdf
+out/
+**/.DS_Store
