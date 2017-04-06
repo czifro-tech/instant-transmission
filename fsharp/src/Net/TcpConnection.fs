@@ -4,6 +4,7 @@ namespace MUDT.Net
   open System.Collections.Generic
   open System.Net
   open System.Net.Sockets
+  open MUDT.Net.ProtocolV1
   open MUDT.Net.Protocol
   open MUDT.Net.Sockets
   open MUDT.Collections
@@ -13,11 +14,11 @@ namespace MUDT.Net
 
     let mutable _socket = null : Socket
 
-    let mutable _parser = (fun x -> None) : byte[] -> TcpPacket option
+    let mutable _parser = (fun x o -> None) : byte[] -> int -> TcpPacketV2 option
 
-    let mutable _composer = (fun x -> None) : TcpPacket -> byte[] option
+    let mutable _composer = (fun x o -> None) : TcpPacketV2 -> int -> byte[] option
 
-    let mutable _receiveCallback = (fun x -> async { ignore 0 }) : TcpPacket -> Async<unit> 
+    let mutable _receiveCallback = (fun x -> async { ignore 0 }) : TcpPacketV2 -> Async<unit> 
 
     let _receiveCompleted = 
       EventHandler<SocketAsyncEventArgs>(fun (sender:obj) (e:SocketAsyncEventArgs) -> 
@@ -56,7 +57,7 @@ namespace MUDT.Net
 
     member x.ListenAsync(port:int) = 
       async {
-        if isNull(x.Socket) = false then
+        if not (isNull(x.Socket)) then
           raise (SocketException(SocketError.AddressAlreadyInUse |> int))
         else
           let endPoint = IPEndPoint(IPAddress.Any, port)
@@ -69,7 +70,7 @@ namespace MUDT.Net
       async {
         if isNull(x.Socket) then
           raise (ArgumentNullException("Socket"))
-        else if x.Socket.IsBound = false then
+        else if not x.Socket.IsBound then
           raise (SocketException(SocketError.NotInitialized |> int))
         let tcp = TcpConnection()
         tcp.Socket <- x.Socket.AsyncAccept()
@@ -77,16 +78,16 @@ namespace MUDT.Net
         return tcp
       }
 
-    member x.SendAsync(packet:TcpPacket) =
+    member x.SendAsync(packet:TcpPacketV2) =
       async {
-        let bytes = x.ByteComposer(packet).Value
+        let bytes = (x.ByteComposer(packet)).Value
         return! x.Socket.AsyncSend(bytes, 0, TcpPacket.DefaultSize)
       }
 
     member x.ReceiveAsync() = 
       async {
-        let bytes = TypeUtility.nullByteArray TcpPacket.DefaultSize
-        return! x.Socket.AsyncReceive(bytes, 0, TcpPacket.DefaultSize, _receiveCompleted)
+        let bytes = TypeUtility.nullByteArray TcpPacketV2.DefaultSize
+        return! x.Socket.AsyncReceive(bytes, 0, TcpPacketV2.DefaultSize, _receiveCompleted)
       }
 
     member x.Receive(size:int) =

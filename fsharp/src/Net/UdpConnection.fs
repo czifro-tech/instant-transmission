@@ -4,7 +4,7 @@ namespace MUDT.Net
   open System.Collections.Generic
   open System.Net
   open System.Net.Sockets
-  open MUDT.Net.Protocol
+  open MUDT.Net.ProtocolV1
   open MUDT.Net.Sockets
   open MUDT.Collections
   open MUDT.Utilities

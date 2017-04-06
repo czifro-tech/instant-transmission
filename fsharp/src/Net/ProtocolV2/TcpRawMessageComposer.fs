@@ -1,0 +1,75 @@
+namespace MUDT.Net.Protocol
+
+  module internal TcpRawMessageComposers =
+
+    open MUDT.Utilities
+    open MUDT.Net.Protocol
+
+    let rawMessage = TypeUtility.nullByteArray TcpPacketV2.DefaultSize
+
+    let insertAsBytes (x:System.Object) (offset:int) (bytes:byte[]) =
+      x 
+      |> ConversionUtility.getBytes
+      |> Array.iteri(fun i b -> bytes.[i+offset] <- b)
+      bytes
+
+    let private composeCommonHeader (packet:TcpPacketV2) =
+      rawMessage
+      |> insertAsBytes packet.ptype 0
+      |> insertAsBytes packet.subtype 1
+
+    let composeSpecsRequest packet =
+      composeCommonHeader packet
+      
+    let getOpField op packet =
+      match op with
+        | 1,'s'         -> packet.blkSize :> System.Object
+        | 1,'e' | 2,'s' -> packet.prl :> System.Object
+        | 2,'e'         -> packet.memLimit :> System.Object
+        | 3, _          -> packet.nPorts :> System.Object
+        | _             -> TypeUtility.nullByte :> System.Object
+
+    let composeSpecsExchange op packet =
+      composeCommonHeader packet
+      |> insertAsBytes (getOpField (op,'e') packet) 2
+
+    let composeSpecsSet op packet =
+      composeCommonHeader packet
+      |> insertAsBytes (getOpField (op,'s') packet) 2
+
+    let composeCommand (packet:TcpPacketV2) =
+      rawMessage
+      |> insertAsBytes packet.ptype 0
+      |> insertAsBytes packet.cmd 1
+
+    let composeCommandResponse packet =
+      composeCommonHeader packet
+      |> insertAsBytes packet.payloadSize 2
+
+    let composeTransferRequest packet =
+      composeCommonHeader packet
+      |> insertAsBytes packet.fnSize 2
+
+    let composeTransferPrepare packet =
+      composeCommonHeader packet
+      |> insertAsBytes packet.fileSize 2
+
+    let composeTransferReady packet =
+      composeCommonHeader packet
+
+  module TcpRawMessageComposer =
+
+    open TcpRawMessageComposers
+
+    let composeRawMessage packet op =
+      match Tcp.parsePacketTypeFromPacket packet with
+      | Specification, Request -> Some (composeSpecsRequest packet)
+      | Specification, Exchange -> Some (composeSpecsExchange op packet)
+      | Specification, Set -> Some (composeSpecsSet op packet)
+      | Command, Output -> Some (composeCommandResponse packet)
+      | Command, _ -> Some (composeCommand packet)
+      | Transfer, Request -> Some (composeTransferRequest packet)
+      | Transfer, Prepare -> Some (composeTransferPrepare packet)
+      | Transfer, Ready -> Some (composeTransferReady packet)
+      | _ -> None
+      

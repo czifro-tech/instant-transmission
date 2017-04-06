@@ -1,7 +1,7 @@
-namespace MUDT.Net.Protocol
+namespace MUDT.Net.ProtocolV1
 
   open MUDT.Utilities
-  open MUDT.Net.Protocol
+  open MUDT.Net.ProtocolV1
 
   module TcpByteComposer =
 

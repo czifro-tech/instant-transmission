@@ -1,4 +1,4 @@
-namespace MUDT.Net.Protocol
+namespace MUDT.Net.ProtocolV1
 
   open MUDT.Utilities.TypeUtility
 
