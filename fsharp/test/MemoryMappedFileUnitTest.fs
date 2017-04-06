@@ -38,15 +38,16 @@ namespace MUDT.Test
     
     open MUDT.IO.MMFPartition
 
-    let ``Speed Test Non Network File Transfer With No Integrity``() =
-      printfn "Running ``Speed Test Non Network File Transfer With No Integrity``..."
-      printf "Enter full path of input file: "
-      let if' = Console.ReadLine() // "/Users/czifro/Dropbox/Der Doppelganger copy.mp4"
-      printf "Enter full path of output file: "
-      let of' = Console.ReadLine() // "/Users/czifro/.mudt/Der Doppelganger copy.mp4"
+    let private mmfSetup() =
+      let if' =  "/Users/czifro/Dropbox/Der Doppelganger copy.mp4"
+      printf "Enter full path of input file: %s\n" if'
+      //let if' = Console.ReadLine()
+      let of' = "/Users/czifro/.mudt/Der Doppelganger copy.mp4" 
+      printf "Enter full path of output file: %s\n" of'
+      //let of' = Console.ReadLine()
       let testStart = DateTime.UtcNow
       Helper.use4GBMemoryLimit()
-      let partitionCount = 1
+      let partitionCount = 12
       let input = 
         (MemoryMappedFile.tryGetFileInfo(if')).Value
         |> createConfig partitionCount
@@ -57,6 +58,28 @@ namespace MUDT.Test
         (MemoryMappedFile.tryGetFileInfo(of')).Value
         |> createConfig partitionCount
         |> MemoryMappedFile.partitionFile false
+
+      (output, input, partitionCount, testStart)
+
+    let mmfTestRunner asyncHandle =
+      let output, input, partitionCount, testStart = mmfSetup()
+      let startTime = DateTime.UtcNow
+      let asyncHandles = [| for i in 0..partitionCount-1 -> Async.StartChild(asyncHandle input.partitions.[i] output.partitions.[i]) |]
+      let results = { output with partitions = asyncHandles |> Array.map(fun x -> (x |> Async.RunSynchronously) |> Async.RunSynchronously) }
+      MemoryMappedFile.finalize results
+      let endTime = DateTime.UtcNow
+      let size = results.partitions |> Array.sumBy(fun x -> x.bytesWrittenCounter)
+      let testEnd = DateTime.UtcNow
+      let res = String.Join("\n", [|
+                                    sprintf "File Name => %s" input.fileInfo.Name;
+                                    sprintf "File Size => %d bytes" size;
+                                    sprintf "Transfer Time => %d ms" (endTime - startTime).Milliseconds
+                                    sprintf "Test Time => %d ms" (testEnd - testStart).Milliseconds
+                                  |])
+      printfn "%s" res
+
+    let ``Speed Test Non Network File Transfer With No Integrity``() =
+      printfn "Running ``Speed Test Non Network File Transfer With No Integrity``..."
 
       let asyncHandle (_in:MMFPartitionState) (_out:MMFPartitionState) = async {
         let! i' = MMFPartition.initializeReadBufferAsync _in
@@ -73,30 +96,33 @@ namespace MUDT.Test
         o <- dispose no
         return o
       }
-      let startTime = DateTime.UtcNow
-      let asyncHandles = [| for i in 0..partitionCount-1 -> Async.StartChild(asyncHandle input.partitions.[i] output.partitions.[i]) |]
-      let results = { output with partitions = asyncHandles |> Array.map(fun x -> (x |> Async.RunSynchronously) |> Async.RunSynchronously) }
-      MemoryMappedFile.finalize results
-      let endTime = DateTime.UtcNow
-      // let pprint (p:MMFPartitionState) = p.PrintInfo()
-      // printfn "input partitions:"
-      // input.partitions |> Array.iter pprint
-      // printfn "output partitions:"
-      // output.partitions |> Array.iter pprint
-      let size = results.partitions |> Array.sumBy(fun x -> x.bytesWrittenCounter)
-      let testEnd = DateTime.UtcNow
-      let res = String.Join("\n", [|
-                                    sprintf "File Name => %s" input.fileInfo.Name;
-                                    sprintf "File Size => %d bytes" size;
-                                    sprintf "Transfer Time => %d ms" (endTime - startTime).Milliseconds
-                                    sprintf "Test Time => %d ms" (testEnd - testStart).Milliseconds
-                                  |])
-      printfn "%s" res
+      mmfTestRunner asyncHandle
+
+    let ``Speed Test Non Network No Buffer File Transfer with No Integrity`` () =
+      printfn "Running ``Speed Test Non Network No Buffer File Transfer with No Integrity``..."
+      let asyncHandle (_in:MMFPartitionState) (_out:MMFPartitionState) = async {
+        let! i' = MMFPartition.initializeReadBufferAsync _in
+        let mutable i = i'
+        let mutable o = _out
+        while not <| feop(i) do
+          let! (bytes, ni) = readFromBufferAsync i 500
+          i <- ni
+          let! no = writeStraightToFileAsync o bytes
+          o <- no
+        //let! no = fullFlushBufferAsync o
+        // dispose of file handle
+        i <- dispose i
+        o <- dispose o
+        return o
+      }
+      
+      mmfTestRunner asyncHandle
 
     let private tests() =
       [|
         ``Speed Test File Creation``;
         ``Speed Test Non Network File Transfer With No Integrity``;
+        ``Speed Test Non Network No Buffer File Transfer with No Integrity``;
       |]
 
     let testRunner op =

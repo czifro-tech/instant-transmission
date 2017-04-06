@@ -32,6 +32,11 @@ module TestRunner =
   [<EntryPoint>]
   let main argv =
     printfn "Argv: %A" argv
+    let st = DateTime.UtcNow
+    printfn "Starting test runner: %s" (st.ToString())
     let testMod, testOp = parseArgv argv.[0]
     Helper.testRunner testRunners testOp testMod
+    let et = DateTime.UtcNow
+    printfn "Test runner finished: %s" (et.ToString())
+    printfn "Duration: %s" ((et - st).ToString())
     0
