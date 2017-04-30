@@ -11,7 +11,7 @@
 
 \usepackage{verbatim}  % Needed for the "comment" environment to make LaTeX comments
 \usepackage{vector}  % Allows "\bvec{}" and "\buvec{}" for "blackboard" style bold vectors in maths
-\hypersetup{urlcolor=blue, colorlinks=true}  % Colours hyperlinks in blue, but this can be distracting if there are many links.
+\hypersetup{urlcolor=black, colorlinks=true}  % Colours hyperlinks in blue, but this can be distracting if there are many links.
 %% ----------------------------------------------------------------
 \begin{document}
 \frontmatter      % Begin Roman style (i, ii, iii, iv...) page numbering
@@ -116,7 +116,7 @@
 
 %% ----------------------------------------------------------------
 % \lhead{\emph{Contents}}  % Set the left side page header to "Contents"
-% \tableofcontents  % Write out the Table of Contents
+\tableofcontents  % Write out the Table of Contents
 
 %% ----------------------------------------------------------------
 % \lhead{\emph{List of Figures}}  % Set the left side page header to "List if Figures"
@@ -129,7 +129,7 @@
 %% ----------------------------------------------------------------
 \setstretch{1.5}  % Set the line spacing to 1.5, this makes the following tables easier to read
 \clearpage  % Start a new page
-\lhead{\emph{Abbreviations}}  % Set the left side page header to "Abbreviations"
+% \lhead{\emph{Abbreviations}}  % Set the left side page header to "Abbreviations"
 \listofsymbols{ll}  % Include a list of Abbreviations (a table of two columns)
 {
 % \textbf{Acronym} & \textbf{W}hat (it) \textbf{S}tands \textbf{F}or \\
@@ -138,6 +138,7 @@
 \textbf{FTP}   & \textbf{F}ile \textbf{T}ransfer \textbf{P}rotocol \\
 \textbf{RTT}   & \textbf{R}ound \textbf{T}rip \textbf{T}ime \\
 \textbf{RFC}   & \textbf{R}equest \textbf{F}or \textbf{C}omment \\
+\textbf{NCP}   & \textbf{N}etwork \textbf{C}ontrol \textbf{P}rogram \\
 \textbf{MCDTP} & \textbf{M}ulti-\textbf{C}hannel \textbf{D}ata \textbf{T}ransfer \textbf{P}rotocol \\
 
 }
@@ -190,7 +191,7 @@
 
 %\input{Chapters/Chapter4} % Implementation
 
-%\input{Chapters/Chapter5} % Testing, Results, and Discussion
+%\input{Chapters/Chapter5} % Testing, Evaluation and Discussion
 
 %\input{Chapters/Chapter6} % Future Work
 

@@ -1,2 +1,58 @@
-\chapter{Related Work}
+\chapter{Background}
 
+In order to approach the problem in a unique way, it was necessary to have a background to the general problem and technologies used by other works as well as technologies used in this project.
+
+\section{Networking}
+
+TCP was invented in 1978 to provide a "reliable host-to-host" protocol for network communication \cite{cerf1978specification}. By using packet reception acknowledgements and congestion control, TCP gave reliability insurance over the Internet Protocol and became the standard for network communication in 1983 \cite{andrews2013who}. UDP was created in 1980 as an alternative to TCP \cite{postel1980user}\cite{kozierokr2005udp}. UDP was designed for applications that needed faster communication. TCP and UDP are now standard protocols in the Transport layer of the network stack.
+
+\subsection{Optimizing TCP}
+
+After the standardization of TCP and growing use of it as a transport protocol, optimizing TCP to transmit data faster has been the goal in these works \cite{brakmo1995tcp}\cite{wei2006fast}\cite{ha2008cubic}. 
+
+TCP-Vegas \cite{brakmo1995tcp} uses the RTT to measure throughput and a lower bound threshold and upper bound threshold to perform congestion control. If the lower bound is greater than the measured throughput, TCP-Vegas will increase the sending rate of the packets. If the measured throughput exceeds the upper bound threshold, it throttles how fast the packets are being sent. Consequently, this method reduces the number of retransmits and the sliding window of TCP can continually move forward.
+
+FAST \cite{wei2006fast} uses RTT and packet loss as measures for congestion control. This method tries to maximize bandwidth usage by being agressive with increasing window sizes until the RTT gets close to a threshold. FAST takes an optimistic approach when exceeding the threshold. It will slowly decrease the window size in hopes that the RTT had degraded for a brief moment. Only when it worsens does FAST aggressively decrease window size. As a result, all paths in a connection equally share the effects of a bottleneck and thus mitigating the ebbs and flows of traffic providing a consistent throughput.
+
+CUBIC \cite{ha2008cubic} is the successor to the BIC-TCP congestion control system. This method treats window growth as a cubic function, using the concave profile on a loss event to increase back to the last recorded max window size, and the convex profile for exceeding the last recorded max window size. This approach allows for the window size to be consistently near the recorded max window size. Due to this, there is a high utilization of the network.
+
+\subsection{Application Layer Protocols}
+
+The Transport layer protocols like TCP and UDP are the foundation for higher level protocols that attempt to optimize throughput at the Application layer, \cite{Fan2010}\cite{Allman1997}\cite{Allman1995}\cite{Aspera2016}\cite{Meiss2007}\cite{gu2007udt}\cite{lai2009designing}\cite{He2002}\cite{Sivakumar2000psockets}.
+
+\subsubsection{UDP Based Protocols}
+
+Tsunami \cite{Meiss2007} uses both UDP and TCP to transmit data. Tsunami uses UDP for sending the payload and TCP as a feedback loop. The TCP connection provides signaling for packet loss, ratransmission requests, error reporting, and completion report. For retransmission, the server will interrupt the flow to resend the data block in which the packet loss occurred. This approach achieved a 400-450 Mbps throughput when transferring a 5 GB file.
+
+RBUDP \cite{He2002} is similar to Tsunami in its mechanics. RBUDP uses a TCP connection to send messages between sender and receiver. The major difference is the retransmit part. RBUDP retransmits packets over UDP after the "bulk data transmission phase" has finished, which is repeated until all packets have made it to the receiver. RBUDP was able to upper bounded packet loss to 7\% and achieve a throughput of 550Mbps.
+
+UDT \cite{gu2007udt} is strictly a UDP-based protocol that imposes a congestion control mechanism on top of that. Used to UDP sockets, one socket labeled "Sender", the other labeled "Receiver". The receiver socket would not only receiver data, but it would be used for sending control information. UDT used TCP like messages for congestion control and reliability insurance. During a transfer from Chicago to Amsterdam, UDT had a throughput of 940Mbps over a 1Gbps link.
+
+Aspera's fasp protocol \cite{Aspera2016}\cite{Fan2010} is a UDP-based protocol that uses a rate-based control system by using early congestion notification and random early detection to adjust the rate of the transmission. fasp handles ratransmissions by resending packets at a rate that makes use of available bandwidth. This provides a continuous flow of data. Network utilization is kept at near 100\%.
+
+\subsubsection{Network Stack Optimization}
+
+ADTS \cite{lai2009designing} is a replacement layer for the Network and Transport layer and is intended to be used of InfiniBand \cite{Pfister2001} (InfiniBand is network stack that treats network traffic as communication rather than bussed data). ADTS uses a zero-copy communication system that reduces latency on the host. It mitigates the need for the CPU to copy data to different places in memory according to the application's needs. Instead, a send will send data directly to an address in memory. This mitigation of unnecessary CPU usage and allowance of direct memory access provided a data transfer speed increase of 65\%.
+
+\subsubsection{Optimization Through Concurrency}
+
+XFTP \cite{Allman1995}\cite{Allman1997} is a modified version of FTP \cite{postel1980user} that uses multiple TCP connections to transfer a single file. The file is divided into records, with the condition that the number of records is greater than the number of connections. When a connection has the resources to send, it is assigned a record to transmit. The receiver reconstructs the original file by placing records in their correct positions. XFTP could achieve a 90\% network utilization using 8 connections.
+
+PSockets \cite{Sivakumar2000psockets} is socket programming library that enables the use of parallel TCP sockets. The library provides simple send and receive functions that abstract the mechanics of PSocket. The passed in data is segmented and sent across multiple TCP connections. The receiver reassembles the received data back into its original form. PSockets manages multiple sockets asynchronously so that sockets do not need to simultaneously share resources. 
+
+
+\section{Asynchrony}
+
+Though this paper does not focus on asynchrony, it is a part of the design choices and implementation of this project and thus is worth reviewing. Asynchrony started out as a way for processes to communicate with each other using unbounded buffer channels \cite{Josephs1989}. A process uses in and out channels for messaging and sharing data with other processes. The purpose is to provide non-blocking behavior. A process does not need to wait for a message or a piece of data to continue doing work, it reacts to incoming messages. This concept has worked its way into programming models and work scheduling \cite{Guo2009}\cite{Leijen2009}\cite{syme2011f}
+
+\subsection{Scheduling Asynchronous Work}
+
+There are two major policies for scheduling asynchronous work, work-first and help-first \cite{Guo2009}. The work-first policy, also known as work-stealing, schedules spawned tasks for immediate execution and any continuation of that task is placed in a queue where other workers can steal from. This policy is particularly useful in situations where workers a busy an rarely need to steal from other workers. The help-first policy takes the opposite approach. A worker will ask help from other workers to begin executing spawned tasks. The continuations of the task are executed by the original worker. This policy is useful when stealing is very frequent because stealing can be implemented in parallel and thus increases the throughput of scheduled tasks.
+
+\subsection{Asynchronous Programming Models}
+
+Implementing asynchrony into a language or project can be very challenging. The theory of asynchrony suggests that communication channels need to be unbounded \cite{He1990}. This is not feasible. This paper and project focus on newer technologies, but for the sake of posterity it is with mentioning former projects like Cilk and JSD that paved the way for implementing asynchrony \cite{sutcliffe1988jackson}\cite{Cameron1986}\cite{Frigo1998}.
+
+\subsubsection{.NET Framework Implementation}
+
+The .NET Framework by Microsoft provides implementations of asynchrony in their languages C\# and F\# \cite{syme2011f}\cite{Leijen2009}. The C\# language received an update in 2009 that add the TPL library that provides asynchronous capabilities in C\#. In later updates, C\# was introduced with the keywords "async" and "await" that allowed for simpler asynchronous programming \cite{alexdavies2012}. This update meant any synchronous method could be transformed into an asynchronous method by adding only these keywords because the compiler transforms the user code into truly asynchronous code. The asynchronous feature of F\# uses the "async" keyword as well, however, the F\# compiler provides more granularity in turning a block of user code into asynchronous code \cite{syme2011f}. Both languages use the TPL library \cite{Leijen2009}\cite{msftVFS}.

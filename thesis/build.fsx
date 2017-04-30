@@ -74,7 +74,7 @@ let checkBuildSuccess (processOp:Process option) =
     printfn "Build failed to start"
   else
     let build : Process = processOp.Value
-    if not <| build.WaitForExit(3000) then
+    if not <| build.WaitForExit(3500) then
       printfn "Build failed. Check logs."
     else
       printfn "Build successful"

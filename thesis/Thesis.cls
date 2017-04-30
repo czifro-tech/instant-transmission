@@ -198,8 +198,8 @@
       \vfill
       {\large A research report submitted in partial fulfillment for the \par}
       {\large degree of Master of Science \par}
-      \bigskip
-      \bigskip
+      %\bigskip
+      %\bigskip
       {\large in the \par}
       {\large \facname \par}
       {\large \deptname \par}
