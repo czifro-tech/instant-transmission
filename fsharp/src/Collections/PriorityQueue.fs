@@ -288,6 +288,9 @@ namespace MUDT.Collections
     ///O(1). Returns true if the queue has no elements.
     let inline isEmpty (pq:IPriorityQueue<'T>) = pq.IsEmpty
 
+    ///O(n). Returns the count of elememts.
+    let inline length (pq: IPriorityQueue<'T>) = pq.Length
+
     ///O(log n) amortized time. Returns a new queue with the element added to the end.
     let inline insert element (pq:IPriorityQueue<'T>) = pq.Insert element
 
