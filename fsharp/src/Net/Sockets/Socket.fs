@@ -17,6 +17,7 @@ namespace MUDT.Net
 
       member x.AsyncConnect(endPoint:IPEndPoint) =
         async {
+          printfn "Connecting to %s" (endPoint.ToString())
           do! Async.AwaitTask(x.ConnectAsync(endPoint))
         }
 
@@ -27,6 +28,7 @@ namespace MUDT.Net
 
       member x.AsyncBind(endPoint:IPEndPoint) =
         async {
+          printfn "Listening on %s" (endPoint.ToString())
           x.Bind(endPoint)
         }
 
@@ -46,3 +48,10 @@ namespace MUDT.Net
           e.add_Completed(completed)
           return x.ReceiveAsync(e)
         }
+
+      member x.OverriddenToString() =
+        printfn "Socket::IsBound: %b" x.IsBound
+        printfn "Socket::IsConnected: %b" x.Connected
+        printfn "Socket::LocalEndPoint: %s" (x.LocalEndPoint.ToString())
+        if not <| isNull x.RemoteEndPoint then
+          printfn "Socket::RemoteEndPoint: %s" (x.RemoteEndPoint.ToString())
