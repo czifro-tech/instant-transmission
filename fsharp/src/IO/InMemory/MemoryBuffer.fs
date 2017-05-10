@@ -20,7 +20,7 @@ namespace MUDT.IO.InMemory
           decr size
           incr head
           if !head > capacity-1 then head := 0
-          if !size < 0 then printfn "Took too much..."
+          if !size < 0 then failwith "Took too much"
           b
       |]
 
@@ -30,7 +30,7 @@ namespace MUDT.IO.InMemory
        incr size
        incr tail
        if !tail > capacity-1 then tail := 0
-       if !size > capacity then printfn "Exceeded capacity..."
+       if !size > capacity then failwithf "Failed to append %d bytes. Exceeded capacity: %d" (Array.length bytes) !size
      )
 
     member x.AsyncWrite(bytes:byte[]) =
