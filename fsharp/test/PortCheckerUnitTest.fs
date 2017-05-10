@@ -2,7 +2,6 @@
 
 
   open System
-  open Xunit
   open MUDT.Net
 
   module PortCheckerUnitTest =
