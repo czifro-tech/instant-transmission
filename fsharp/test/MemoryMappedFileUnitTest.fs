@@ -2,14 +2,12 @@ namespace MUDT.Test
 
   open System
   open System.IO
-  open Xunit
   open MUDT.IO
   open MUDT.Diagnostics
   open MUDT.Cryptography
 
   module MemoryMappedFileUnitTest =
 
-    //[<Fact>]
     let ``Speed Test File Creation`` () =
       Helper.use4GBMemoryLimit()
       let testDir = ((Directory.GetParent("/Users/czifro/Developer")).GetDirectories()) |> Array.find(fun x -> x.Name = ".mudt")
