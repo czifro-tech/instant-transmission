@@ -2,32 +2,44 @@ namespace MUDT.Test
 
   open System
   open System.Security.Cryptography
+  open System.IO
   open MUDT.Cryptography
   open MUDT.Diagnostics
+  open MUDT.IO
   open MUDT.Test
 
   module HasherUnitTests =
   
     let cacheCost = 40960L
 
+    let printChecksum checksum =
+      checksum
+      |> Array.iter(fun c ->
+        printfn "Checksum: %s" (c.ToString())
+      )
+
     let doHash data state =
       let startTime = DateTime.UtcNow
       let startMem = CurrentProcessInfo.totalUsedPhysicalMemory()
-      let dataHash = (Hasher.computeHash state data) |> Hasher.finalizeHash
+      let _,dataHash = (Hasher.computeHash state data) |> Hasher.finalizeHash
       let endMem = CurrentProcessInfo.totalUsedPhysicalMemory()
       let endTime = DateTime.UtcNow
-      (abs((startMem - endMem) - cacheCost)), (endTime - startTime).Milliseconds, (Array.length dataHash)
+      //printChecksum dataHash
+      (abs((startMem - endMem) - cacheCost)), (endTime - startTime).Milliseconds, (Array.length dataHash)*16
 
     let doIncrementalHashing(data:byte[],size:int) =
       let ih = Hasher.createIHHashState(size/100)
+      //printfn "Incremental Hashing..."
       doHash data ih
 
     let doBacklogHashing(data:byte[],size:int) =
       let backlog = Hasher.createMd5HashState true (size/100)
+      //printfn "Backlog Hashing..."
       doHash data backlog
 
     let doMd5Hashing(data:byte[],size:int) =
       let md5 = Hasher.createMd5HashState false size
+      //printfn "MD5 Hashing..."
       doHash data md5
 
     let getValues (op:int) =
@@ -127,10 +139,36 @@ namespace MUDT.Test
                                   |])
       printfn "%s" res
 
+    let ``Matching Hash Test`` () =
+      let fileName = "Der Doppelganger copy.mp4"
+      let if' =  "/Users/czifro/Dropbox/" + fileName
+      Helper.use4GBMemoryLimit()
+      let file' = (MemoryMappedFile.tryGetFileInfo(if')).Value
+      let bufferCapacity = int ((file'.Length / 8L) / 100L)
+      let hashBlockSize = int ((file'.Length / 8L) / 8L)
+      let mutable hashState1 = Hasher.createMd5HashState true hashBlockSize
+      let mutable hashState2 = Hasher.createMd5HashState true hashBlockSize
+      use stream = file'.OpenRead()
+      printfn "Hashing File..."
+      while stream.Position < stream.Length-1L do
+        let buffer = MUDT.Utilities.TypeUtility.nullByteArray bufferCapacity
+        let ret = stream.Read(buffer,0,bufferCapacity)
+        printfn "Hashing %d bytes" ret
+        hashState1 <- Hasher.computeHash hashState1 (buffer |> Array.take ret)
+        hashState2 <- Hasher.computeHash hashState2 (buffer |> Array.take ret)
+      let hashState1,checksum1 = Hasher.finalizeHash hashState1
+      let hashState2,checksum2 = Hasher.finalizeHash hashState2
+      let mismatch = Hasher.compareHash checksum1 checksum2
+      printfn "checksum1: %A" checksum1
+      printfn "checksum2: %A" checksum2
+      printfn "mismatch: %A" mismatch
+
+
     let private tests() =
       [|
         ``Compare Memory Usage``;
         ``Speed and Memory Test``;
+        ``Matching Hash Test``;
       |]
 
     let testRunner op =

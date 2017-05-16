@@ -99,9 +99,20 @@ namespace MUDT.IO
                             openFile config startPos len read
                           else 
                             openFile config startPos len write
-                      |];
+                      |]
+                      |> Array.sortBy(fun (p:MMFPartitionState) -> p.startPosition );
         fileInfo = config.file
       }
+
+    let checksum (state:MemoryMappedFileState) =
+      let pStates,checksums =
+        state.partitions
+        |> Array.map(fun p ->
+          let pHash,checksum = Hasher.finalizeHash p.partitionHash
+          { p with partitionHash = pHash }, checksum
+        )
+        |> Array.unzip
+      { state with partitions = pStates  },(checksums |> Array.concat |> Array.sortBy(fun c -> c.positionInSource))
 
     let finalize (state:MemoryMappedFileState) =
       for i in 0..(Array.length state.partitions-1) do

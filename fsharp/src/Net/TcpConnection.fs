@@ -22,13 +22,14 @@ namespace MUDT.Net
 
     let _receiveCompleted = 
       EventHandler<SocketAsyncEventArgs>(fun (sender:obj) (e:SocketAsyncEventArgs) -> 
-        let packet = _parser(e.Buffer)
-        if packet.IsSome then
-          _receiveCallback(packet.Value) |> ignore
+        //let packet = _parser(e.Buffer)
+        // if packet.IsSome then
+        //   _receiveCallback(packet.Value) |> ignore
+        ()
       )
 
     let newSocket =
-      new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp)
+      new Socket(AddressFamily.InterNetworkV6, SocketType.Stream, ProtocolType.Tcp)
 
     member x.Socket
       with get() = _socket
@@ -51,8 +52,9 @@ namespace MUDT.Net
         let! hostInfo = Async.AwaitTask(Dns.GetHostEntryAsync(ip))
         let ipAddresses = hostInfo.AddressList
         let endPoint = IPEndPoint(ipAddresses.[0], port)
+        printfn "Connecting to %s" (endPoint.ToString())
         x.Socket <- newSocket
-        do! x.Socket.AsyncConnect(endPoint)
+        x.Socket.Connect(endPoint)
       }
 
     member x.ListenAsync(port:int) = 
@@ -60,10 +62,11 @@ namespace MUDT.Net
         if not (isNull(x.Socket)) then
           raise (SocketException(SocketError.AddressAlreadyInUse |> int))
         else
-          let endPoint = IPEndPoint(IPAddress.Any, port)
+          let endPoint = IPEndPoint(IPAddress.IPv6Any, port)
+          printfn "Listening on %s" (endPoint.ToString())
           x.Socket <- newSocket
-          do! x.Socket.AsyncBind(endPoint)
-          do! x.Socket.AsyncListen(SocketOptionName.MaxConnections |> int)
+          x.Socket.Bind(endPoint)
+          x.Socket.Listen(SocketOptionName.MaxConnections |> int)
       }
 
     member x.AcceptAsync() : Async<TcpConnection> =
@@ -73,15 +76,22 @@ namespace MUDT.Net
         else if not x.Socket.IsBound then
           raise (SocketException(SocketError.NotInitialized |> int))
         let tcp = TcpConnection()
-        tcp.Socket <- x.Socket.AsyncAccept()
-        |> Async.RunSynchronously
+        tcp.Socket <- x.Socket.Accept()//.AsyncAccept()
+        //|> Async.RunSynchronously
+        printfn "Accepted Connection..."
+        tcp.Socket.OverriddenToString()
+        tcp.ByteComposer <- x.ByteComposer
+        tcp.ByteParser <- x.ByteParser
         return tcp
       }
 
-    member x.SendAsync(packet:TcpPacketV2) =
+    member x.SendAsync(bytes:byte[]) =
       async {
-        let bytes = (x.ByteComposer(packet)).Value
-        return! x.Socket.AsyncSend(bytes, 0, TcpPacket.DefaultSize)
+        let code = SocketError.Success
+        let sent = x.Socket.Send(bytes,0,(Array.length bytes),SocketFlags.None,ref code)
+        printfn "Sent count: %d" sent
+        //printfn "Sent something: %A" bytes
+        return code
       }
 
     member x.ReceiveAsync() = 
@@ -92,8 +102,11 @@ namespace MUDT.Net
 
     member x.Receive(size:int) =
       let bytes = TypeUtility.nullByteArray size
-      let code = x.Socket.Receive(bytes, 0, size, SocketFlags.None)
-      if code = int(SocketError.Success) then
+      let code = SocketError.Success
+      let recvd = x.Socket.Receive(bytes, 0, size, SocketFlags.None, ref code)
+      if code = SocketError.Success then
+        //printfn "Got something: %A" bytes
         Some bytes
       else
+        printfn "Error Code: %s" ((SocketException(int code)).ToString())
         None

@@ -5,7 +5,7 @@ namespace MUDT.Net.Protocol
     open MUDT.Utilities
     open MUDT.Net.Protocol
 
-    let rawMessage = TypeUtility.nullByteArray TcpPacketV2.DefaultSize
+    let rawMessage() = TypeUtility.nullByteArray TcpPacketV2.DefaultSize
 
     let insertAsBytes (x:System.Object) (offset:int) (bytes:byte[]) =
       x 
@@ -14,7 +14,7 @@ namespace MUDT.Net.Protocol
       bytes
 
     let private composeCommonHeader (packet:TcpPacketV2) =
-      rawMessage
+      rawMessage()
       |> insertAsBytes packet.ptype 0
       |> insertAsBytes packet.subtype 1
 
@@ -23,28 +23,25 @@ namespace MUDT.Net.Protocol
       
     let getOpField op packet =
       match op with
-        | 1,'s'         -> packet.blkSize :> System.Object
+        | 1,'s' | 2,'e' -> packet.blkSize :> System.Object
         | 1,'e' | 2,'s' -> packet.prl :> System.Object
-        | 2,'e'         -> packet.memLimit :> System.Object
         | 3, _          -> packet.nPorts :> System.Object
         | _             -> TypeUtility.nullByte :> System.Object
 
     let composeSpecsExchange op packet =
+      let print bytes =
+        printfn "Composing..."
+        printfn "op: %d" op
+        printfn "packet: %s" (packet.ToString())
+        printfn "bytes: %A" bytes
+        bytes
       composeCommonHeader packet
       |> insertAsBytes (getOpField (op,'e') packet) 2
+      //|> print
 
     let composeSpecsSet op packet =
       composeCommonHeader packet
       |> insertAsBytes (getOpField (op,'s') packet) 2
-
-    let composeCommand (packet:TcpPacketV2) =
-      rawMessage
-      |> insertAsBytes packet.ptype 0
-      |> insertAsBytes packet.cmd 1
-
-    let composeCommandResponse packet =
-      composeCommonHeader packet
-      |> insertAsBytes packet.payloadSize 2
 
     let composeTransferRequest packet =
       composeCommonHeader packet
@@ -57,19 +54,34 @@ namespace MUDT.Net.Protocol
     let composeTransferReady packet =
       composeCommonHeader packet
 
+    let composeTransferFinished packet =
+      let print bytes =
+        printfn "bytes: %A" bytes
+        bytes
+      composeCommonHeader packet
+      //|> print
+
+    let composeTransferChecksum packet =
+      composeCommonHeader packet
+      |> insertAsBytes packet.csumSize 2
+
   module TcpRawMessageComposer =
 
     open TcpRawMessageComposers
 
     let composeRawMessage packet op =
+      if op = -1 then
+        printfn "Composing: %s" (packet.ToString())
+        let tuple = Tcp.parsePacketTypeFromPacket packet
+        printfn "Packet type: %c %c" (Tcp.getByte(fst tuple) |> char) (Tcp.getByte(snd tuple) |> char)
       match Tcp.parsePacketTypeFromPacket packet with
       | Specification, Request -> Some (composeSpecsRequest packet)
       | Specification, Exchange -> Some (composeSpecsExchange op packet)
       | Specification, Set -> Some (composeSpecsSet op packet)
-      | Command, Output -> Some (composeCommandResponse packet)
-      | Command, _ -> Some (composeCommand packet)
       | Transfer, Request -> Some (composeTransferRequest packet)
       | Transfer, Prepare -> Some (composeTransferPrepare packet)
       | Transfer, Ready -> Some (composeTransferReady packet)
+      | Transfer, Finished -> Some (composeTransferFinished packet)
+      | Transfer, Checksum -> Some (composeTransferChecksum packet)
       | _ -> None
       

@@ -11,7 +11,7 @@ namespace MUDT.Net.Protocol
       nPorts       :  int;
       blkSize      :  int64;
       cmd          :  int;
-      payloadSize  :  int64;
+      csumSize     :  int64;
       fnSize       :  int;
       fileSize     :  int64;
     }
@@ -25,46 +25,51 @@ namespace MUDT.Net.Protocol
         nPorts       =  0;
         blkSize      =  0L;
         cmd          =  0;
-        payloadSize  =  0L;
+        csumSize     =  0L;
         fnSize       =  0;
         fileSize     =  0L;
       }
 
     static member DefaultSize = 15
 
-  type TcpPacketType =
+  type TcpPacketV2Type =
     | Specification
-    | Command
     | Transfer
     | Unknown
 
   type TcpPacketSubType =
+    // Specification
     | Request
     | Exchange
     | Set
-    | Output
+    // Transfer
     | Prepare
     | Ready
+    | Finished
+    | Checksum
+    | Success
+    // Specification, Transfer, Unknown
     | Unknown
 
   module Tcp =
 
     let getByte (enum:System.Object) =
       match enum with
-      | :? TcpPacketType as ptype ->
+      | :? TcpPacketV2Type as ptype ->
         match ptype with
-        | TcpPacketType.Specification -> byte 's'
-        | TcpPacketType.Command -> byte 'c'
-        | TcpPacketType.Transfer -> byte 't'
-        | TcpPacketType.Unknown -> byte 'u'
+        | TcpPacketV2Type.Specification -> byte 's'
+        | TcpPacketV2Type.Transfer -> byte 't'
+        | TcpPacketV2Type.Unknown -> byte 'u'
       | :? TcpPacketSubType as subtype ->
         match subtype with
         | TcpPacketSubType.Request -> byte 'r'
         | TcpPacketSubType.Exchange -> byte 'e'
         | TcpPacketSubType.Set -> byte 's'
-        | TcpPacketSubType.Output -> byte 'o'
         | TcpPacketSubType.Prepare -> byte 'p'
         | TcpPacketSubType.Ready -> byte 'R'
+        | TcpPacketSubType.Finished -> byte 'f'
+        | TcpPacketSubType.Checksum -> byte 'c'
+        | TcpPacketSubType.Success -> byte 'S'
         | TcpPacketSubType.Unknown -> byte 'u'
       | _ -> nullByte
 
@@ -73,12 +78,13 @@ namespace MUDT.Net.Protocol
       | 's','r' -> Specification, Request
       | 's','e' -> Specification, Exchange
       | 's','s' -> Specification, Set
-      | 'c','o' -> Command, Output
-      | 'c', _  -> Command, Unknown
       | 't','r' -> Transfer, Request
       | 't','p' -> Transfer, Prepare
       | 't','R' -> Transfer, Ready
-      | _       -> TcpPacketType.Unknown, TcpPacketSubType.Unknown
+      | 't','f' -> Transfer, Finished
+      | 't','c' -> Transfer, Checksum
+      | 't','S' -> Transfer, Success
+      | _       -> TcpPacketV2Type.Unknown, TcpPacketSubType.Unknown
 
     let parsePacketTypeFromPacket (packet:TcpPacketV2) =
       parsePacketType (packet.ptype |> char, packet.subtype |> char)

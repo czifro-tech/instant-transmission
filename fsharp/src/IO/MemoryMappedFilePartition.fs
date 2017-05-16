@@ -55,14 +55,21 @@ namespace MUDT.IO
     let createMMFPartitionState (config:MMFPartitionStateConfig) =
       let memBuffer = MemoryBuffer(int(config.bufferCapacity))
       config.fs.Seek(config.startPos, SeekOrigin.Begin) |> ignore
+      let partitionHash =
+        {
+          Hasher.createHashState config.hashStateConfig with
+            startPositionInSource = config.startPos;
+            currentPositionInSource = config.startPos;
+            positionAtLastEvent = config.startPos
+        }
       {
-        partitionHash = Hasher.createHashState(config.hashStateConfig);
+        partitionHash = partitionHash;
         fileStream = config.fs;
         isDisposed = false;
         writerLock = config.sharedLock;
         startPosition = config.startPos;
         currentPosition = config.startPos;
-        endPosition = config.size + config.startPos - 1L;
+        endPosition = config.size + config.startPos;
         partitionSize = config.size;
         buffer = memBuffer;
         bufferCapacity = config.bufferCapacity;
@@ -102,11 +109,11 @@ namespace MUDT.IO
         if toBuffer then
           state.buffer.WriteBytes(bytes)
         else
-          state.writerLock.Value.EnterWriteLock()
-          state.fileStream.Write(bytes, 0, (Array.length bytes)) |> ignore
+          //state.writerLock.Value.EnterWriteLock()
+          state.fileStream.Write(bytes, 0, (Array.length bytes))
           state.fileStream.Flush()
           state' <- { state' with bytesWrittenCounter = state'.bytesWrittenCounter + int64((Array.length bytes)) }
-          state.writerLock.Value.ExitWriteLock()
+          //state.writerLock.Value.ExitWriteLock()
         return state'
       }
 
@@ -144,6 +151,7 @@ namespace MUDT.IO
 
     let private flushAsync (len:int) (stat:MMFPartitionState) : Async<MMFPartitionState> =
       async {
+        //printfn "Flushing buffer to file..."
         let mutable state = stat
         let doAsyncRead() =
           let (bytes, state') = Async.RunSynchronously(asyncRead state true len)
@@ -153,6 +161,7 @@ namespace MUDT.IO
           ()
           |> doAsyncRead
           |> updateHash &state
+          //|> printAsString
           |> asyncWrite state false
           |> Async.RunSynchronously
         return { state with currentPosition = state.currentPosition + int64(len); 
@@ -161,6 +170,7 @@ namespace MUDT.IO
 
     let private partialFlushBufferAsync (state:MMFPartitionState) = 
       async {
+        //printfn "Checking if flushing is needed..."
         if state.bufferLength > (state.bufferCapacity / 2L) then
           let len = state.bufferLength
           return! flushAsync (int(len)) state
@@ -180,8 +190,32 @@ namespace MUDT.IO
 
     let writeToBufferAsync (state:MMFPartitionState) (bytes:byte[]) =
       async {
-        do! state.buffer.AsyncWrite(bytes)
-        return! partialFlushBufferAsync { state with bufferLength = state.bufferLength + int64(Array.length bytes) }
+        let len = Array.length bytes
+        if (int64 len) > state.bufferCapacity - state.bufferLength then
+          
+          let rem = int(state.bufferCapacity - state.bufferLength)
+          do! state.buffer.AsyncWrite(bytes |> Array.take rem)
+          let! state = fullFlushBufferAsync { state with bufferLength = state.bufferCapacity }
+          let blocks = (float (len - rem) / float state.bufferLength)
+          if blocks <= 1.0 then
+            do! state.buffer.AsyncWrite(bytes |> Array.skip rem)
+            return! partialFlushBufferAsync { state with bufferLength = state.bufferLength + int64(rem) }
+          else
+            let mutable state' = state
+            let nBlocks = int (floor blocks)
+            let bytes = bytes |> Array.skip rem
+            let nBytes = bytes |> Array.take (nBlocks * (int state'.bufferCapacity))
+            let remBytes = bytes |> Array.skip (nBlocks * (int state'.bufferCapacity))
+            for i in 0..nBlocks-1 do
+              let b = nBytes |> Array.skip (i*(int state'.bufferCapacity)) |> Array.take (int state'.bufferCapacity)
+              do! state'.buffer.AsyncWrite(b)
+              let! state'' = fullFlushBufferAsync { state' with bufferLength = state'.bufferCapacity }
+              state' <- state''
+            do! state'.buffer.AsyncWrite(remBytes)
+            return! partialFlushBufferAsync { state' with bufferLength = state'.bufferLength + int64(Array.length remBytes) }
+        else
+          do! state.buffer.AsyncWrite(bytes)
+          return! partialFlushBufferAsync { state with bufferLength = state.bufferLength + int64(Array.length bytes) }
       }
 
     let writeStraightToFileAsync (stat:MMFPartitionState) (bytes:byte[]) =

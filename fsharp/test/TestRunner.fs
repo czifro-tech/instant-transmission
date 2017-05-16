@@ -10,6 +10,7 @@ module TestRunner =
       HasherUnitTests.testRunner
       PortCheckerUnitTest.testRunner
       MemoryMappedFileUnitTest.testRunner
+      FTPUnitTest.testRunner
     |]
 
   /// Acceptable formats are:

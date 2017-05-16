@@ -13,11 +13,13 @@ namespace MUDT.Net
 
     let mutable _socket = null : Socket
 
+    let mutable _remoteEP = null : IPEndPoint
+
     let mutable _parser = (fun x -> None) : byte[] -> UdpPacket option
 
-    let mutable _composer = (fun x -> [||]) : UdpPacket -> byte[]
+    let mutable _composer = (fun x -> [||]) : (UdpPacket) -> byte[]
 
-    let mutable _receiveCallback = (fun x -> async { ignore 0 }) : UdpPacket -> Async<unit> 
+    let mutable _receiveCallback = (fun x -> async { ignore 0 }) : UdpPacket -> Async<unit>
 
     let _receiveCompleted = 
       EventHandler<SocketAsyncEventArgs>(fun (sender:obj) (e:SocketAsyncEventArgs) -> 
@@ -27,13 +29,17 @@ namespace MUDT.Net
       )
 
     let newSocket = 
-      new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp)
+      new Socket(AddressFamily.InterNetworkV6, SocketType.Dgram, ProtocolType.Udp)
 
     do
       _socket <- newSocket
+      _socket.ReceiveTimeout <- 1000
 
     member x.Socket
       with get() = _socket
+    member x.RemoteEP
+      with get() = _remoteEP
+      and set(value) = _remoteEP <- value
     member x.ByteParser
       with get() = _parser
       and set(value) = _parser <- value
@@ -46,18 +52,28 @@ namespace MUDT.Net
     member x.BindAsync(port:int) = 
       async {
         let endPoint = IPEndPoint(IPAddress.Any, port)
-        return! _socket.AsyncBind(endPoint)
+        return _socket.Bind(endPoint)
       }
+
+    member x.ConnectAsync(endPoint:IPEndPoint) =
+      async {
+        _remoteEP <- endPoint
+        return _socket.Connect(endPoint)
+      }
+
     member x.SendAsync(packet:UdpPacket) =
       async {
         let bytes = x.ByteComposer packet
-        return! x.Socket.AsyncSend(bytes, 0, UdpPacket.DefaultSize)
+        let sent = x.Socket.SendTo(bytes,0,(Array.length bytes),SocketFlags.None,_remoteEP)
+        //printfn "Sent count: %d" sent
+        ()
       }
 
-    member private x.ReceiveCompleted(e:SocketAsyncEventArgs) =
-      let packet = x.ByteParser(e.Buffer)
-      if packet.IsSome then
-        x.ReceiveCallback(packet.Value) |> ignore
+    member x.Receive(size:int) =
+      let bytes = TypeUtility.nullByteArray size
+      let recvd = x.Socket.Receive(bytes,0,size,SocketFlags.None)
+      //printfn "Received count: %d" recvd
+      bytes
 
     member x.ReceiveAsync() = 
       async {
