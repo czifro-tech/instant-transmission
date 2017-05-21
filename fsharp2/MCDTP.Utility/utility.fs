@@ -56,3 +56,23 @@ namespace MCDTP.Utility
 
     let nullByteArray size =
       [| for i in 0 .. size-1 -> nullByte |]
+
+  module Sync =
+
+    open System.Threading
+
+    let createLock() = new ReaderWriterLockSlim()
+
+    let write (func:unit->unit) (locker:ReaderWriterLockSlim) =
+      locker.EnterWriteLock()
+      try
+        func ()
+      finally
+        locker.ExitWriteLock()
+
+    let read (func:unit->'a) (locker:ReaderWriterLockSlim) =
+      locker.EnterReadLock()
+      try
+        func ()
+      finally
+        locker.ExitReadLock()
