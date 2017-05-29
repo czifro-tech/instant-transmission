@@ -22,12 +22,11 @@ namespace MCDTP.Logging
       | LogLevel.None -> "None"
       | _ -> failwithf "Invalid log level: %A" l
 
-    type internal Message =
+    type Message =
       | ConsoleMessage of LogLevel * string * obj * DateTime
       | ThroughputMessage of LogLevel * int64 * DateTime * DateTime
       | PacketsDroppedMessage of LogLevel * (int*int) * int * DateTime
 
-    [<AllowNullLiteral>]
     type ConsoleLogger() =
 
       let mutable isRunning = false
@@ -72,6 +71,7 @@ namespace MCDTP.Logging
       member private __.RunLogger() =
         let runner =
           async {
+            toggleRunning()
             let rec log() =
               let messageOption =
                 locker
@@ -115,7 +115,6 @@ namespace MCDTP.Logging
           |> ignore
           isDisposed <- true
 
-    [<AllowNullLiteral>]
     type NetworkLogger(fileName) =
 
       let logFileName = Path.Combine(Directory.GetCurrentDirectory(), fileName)
@@ -137,9 +136,6 @@ namespace MCDTP.Logging
       let mutable packetDropCount = 0L
       let mutable isDisposed = false
       let isDisposedLocker = Sync.createLock()
-      let disposed() =
-        try isDisposedLocker |> Sync.read(fun () -> isDisposed)
-        with _ -> true
 
       member __.ThroughputInterval
         with get() = throughputInterval
@@ -149,7 +145,8 @@ namespace MCDTP.Logging
         and set(value) = logLevel <- value
 
       member this.LogNumberOfBytesWith(level:LogLevel,byteCount:int) =
-        if disposed() then failwith "Logger is disposed!"
+        let disposed = isDisposedLocker |> Sync.read(fun () -> isDisposed)
+        if disposed then failwith "Logger is disposed!"
         if level <= logLevel && logLevel <> LogLevel.None && level <> LogLevel.None then
           let now = DateTime.UtcNow
           if lastThroughputLogEvent = DateTime.MinValue then // for our initial call
@@ -169,7 +166,8 @@ namespace MCDTP.Logging
           this.TryRunLogger()
 
       member __.SuspendThroughputLogging(level:LogLevel) =
-        if disposed() then failwith "Logger is disposed!"
+        let disposed = isDisposedLocker |> Sync.read(fun () -> isDisposed)
+        if disposed then failwith "Logger is disposed!"
         if level <= logLevel && logLevel <> LogLevel.None && level <> LogLevel.None then
           if throughput > 0L then
             let message = ThroughputMessage(logLevel,throughput,lastThroughputLogEvent,DateTime.UtcNow)
@@ -181,7 +179,8 @@ namespace MCDTP.Logging
           lastThroughputLogEvent <- DateTime.MinValue
 
       member this.LogPacketsDropped(level:LogLevel,range:(int*int),packetSize:int) =
-        if disposed() then failwith "Logger is disposed!"
+        let disposed = isDisposedLocker |> Sync.read(fun () -> isDisposed)
+        if disposed then failwith "Logger is disposed!"
         if level <= logLevel && logLevel <> LogLevel.None && level <> LogLevel.None then
           let message = PacketsDroppedMessage(level,range,packetSize,DateTime.UtcNow)
           locker
