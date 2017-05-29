@@ -63,7 +63,7 @@ namespace MCDTP.Utility
 
     let createLock() = new ReaderWriterLockSlim()
 
-    let write (func:unit->unit) (locker:ReaderWriterLockSlim) =
+    let write (func:unit->'a) (locker:ReaderWriterLockSlim) =
       locker.EnterWriteLock()
       try
         func ()
