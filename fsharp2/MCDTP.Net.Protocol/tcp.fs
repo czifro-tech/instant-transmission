@@ -12,7 +12,6 @@ namespace MCDTP.Net.Protocol
       nPorts       :  int;
       blkSize      :  int64;
       cmd          :  int;
-      csumSize     :  int64;
       fnSize       :  int;
       fileSize     :  int64;
     }
@@ -26,7 +25,6 @@ namespace MCDTP.Net.Protocol
         nPorts       =  0;
         blkSize      =  0L;
         cmd          =  0;
-        csumSize     =  0L;
         fnSize       =  0;
         fileSize     =  0L;
       }
@@ -174,7 +172,6 @@ namespace MCDTP.Net.Protocol
               | Prepare  -> Some { packet with fileSize = Conversion.bytesToInt64 bytes.[2..9] }
               | Ready
               | Finished -> packetOption
-              | Checksum -> Some { packet with csumSize = Conversion.bytesToInt64 bytes.[2..9] }
               | _ -> None
             | _ -> None
           | _ -> None
@@ -228,7 +225,7 @@ namespace MCDTP.Net.Protocol
           newRawMessage()
           |> insertAsBytes packet.ptype 0
           |> insertAsBytes packet.subtype 1
-        internalLogger.LogWith(LogLevel.Info,"Tcp.ComposerImpl.composeCommonHeader",(packet,bytes))
+        internalLogger.LogWith(LogLevel.Debug,"Tcp.ComposerImpl.composeCommonHeader",(packet,bytes))
         Some bytes
 
       let composeSpecsPacket packet =
@@ -247,7 +244,7 @@ namespace MCDTP.Net.Protocol
               | _ -> None
             | _ -> None
           | _ -> None
-        internalLogger.LogWith(LogLevel.Info,"Tcp.ComposerImpl.composeSpecsPacket_2",(packet,bytesOption))
+        internalLogger.LogWith(LogLevel.Debug,"Tcp.ComposerImpl.composeSpecsPacket_2",(packet,bytesOption))
         bytesOption
 
       let composeTransferPacket packet =
@@ -263,11 +260,10 @@ namespace MCDTP.Net.Protocol
               | Prepare  -> Some (bytes |> insertAsBytes packet.fileSize 2)
               | Ready
               | Finished -> bytesOption
-              | Checksum -> Some (bytes |> insertAsBytes packet.csumSize 2)
               | _ -> None
             | _ -> None
           | _ -> None
-        internalLogger.LogWith(LogLevel.Info,"Tcp.ComposerImpl.composeTransferPacket_2",(packet,bytesOption))
+        internalLogger.LogWith(LogLevel.Debug,"Tcp.ComposerImpl.composeTransferPacket_2",(packet,bytesOption))
         bytesOption
 
     (* Tcp.Composer
@@ -287,7 +283,7 @@ namespace MCDTP.Net.Protocol
         match composerOption with
         | Some composer ->
           let bytesOption = composer packet
-          internalLogger.LogWith(LogLevel.Info,"Tcp.Composer.tryCompose",(packet,bytesOption))
+          internalLogger.LogWith(LogLevel.Debug,"Tcp.Composer.tryCompose",(packet,bytesOption))
           bytesOption
         | _ ->
           internalLogger.Log("[TCP] Failed to compose",packet)

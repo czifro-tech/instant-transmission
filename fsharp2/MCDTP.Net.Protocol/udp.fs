@@ -35,7 +35,7 @@ namespace MCDTP.Net.Protocol
         if p1.seqNum < p2.seqNum then -1
         elif p1.seqNum = p2.seqNum then 0
         else 1
-      logger.LogWith(LogLevel.Info,"Udp.packetCompare",(p1,p2,ret))
+      internalLogger.LogWith(LogLevel.Debug,"Udp.packetCompare",(p1,p2,ret))
       ret
 
     module Parser =
@@ -53,11 +53,11 @@ namespace MCDTP.Net.Protocol
               data = bytes.[12..];
             }
             |> Some
-          logger.LogWith(LogLevel.Info,"Udp.Parser.tryParse",(bytes,packetOption))
+          internalLogger.LogWith(LogLevel.Debug,"Udp.Parser.tryParse",(bytes,packetOption))
           packetOption
           with
           | ex ->
-            logger.Log("[UDP] Parser threw exception", ex)
+            internalLogger.Log("[UDP] Parser threw exception", ex)
             None
 
     module Composer =
@@ -77,9 +77,9 @@ namespace MCDTP.Net.Protocol
           |> insertAsBytes packet.dLen 8
           |> insertAsBytes packet.rFlag 10
           |> insertAsBytes packet.data 12
-        logger.LogWith(LogLevel.Info,"Udp.Composer.tryCompose",(packet,bytes))
+        internalLogger.LogWith(LogLevel.Debug,"Udp.Composer.tryCompose",(packet,bytes))
         Some bytes
         with
         | ex ->
-          logger.Log("[UDP] Composer threw exception",ex)
+          internalLogger.Log("[UDP] Composer threw exception",ex)
           None
