@@ -6,6 +6,7 @@
 
   <ItemGroup>
     <Compile Include="utility.fs" />
+    <Compile Include="queue.fs" />
   </ItemGroup>
 
   <ItemGroup>
