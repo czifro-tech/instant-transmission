@@ -78,3 +78,48 @@ namespace MCDTP.IO.MemoryStream
           state.logger.LogWith(LogLevel.Error,"MemoryStream threw exception",ex)
           return -1,[||],state
       }
+
+    let asyncAmend pos bytes state =
+      async {
+        try
+        let nBuffer =
+          // recursion should be fine,
+          //  asumption is that we won't
+          //  be going to deep
+          let rec amend pos' bytes' buffers =
+            match buffers with
+            | x::xs ->
+              if Array.isEmpty bytes' then xs
+              else
+                let len = int64 <| Array.length x
+                if pos' + len < pos then amend (pos' + len) bytes' xs
+                else
+                  let posInX = int <| pos - pos' // guaranteed to be less than max int
+                  let byteCount = Array.length bytes'
+                  // check if patch is encapsulated in x
+                  if posInX + byteCount < int len then
+                    bytes'
+                    |> Array.iteri(fun i b ->
+                      x.[posInX + i] <- b
+                    )
+                    x::xs
+                  else // we need to wrap to next buffer
+                    let take = (int len) - posInX
+                    bytes'
+                    |> Array.take take
+                    |> Array.iteri(fun i b ->
+                      x.[posInX + i] <- b
+                    )
+                    // use pos so that pos' - pos = 0 placing
+                    //  posInX at beginning of x on next call
+                    x::(amend pos (bytes' |> Array.skip take) xs)
+            | _ -> []
+          amend pos bytes state.buffer
+        let nState = { state with buffer = nBuffer }
+        nState.logger.LogWith(LogLevel.Debug,"MemoryStream.asyncAmend",(pos,bytes,nState))
+        return true,nState
+        with
+        | ex ->
+          state.logger.LogWith(LogLevel.Error,"MemoryStream threw exception",ex)
+          return false,state
+      }
