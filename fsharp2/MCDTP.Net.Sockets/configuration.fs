@@ -61,7 +61,7 @@ namespace MCDTP.Net.Sockets
       | _ when k = logger2_ -> { c with logger2 = (v :?> Logger) }
       | _ -> failwithf "Unknown key '%s'" k
 
-    let inline setFn (fn:Fn) c =
+    let setFn (fn:Fn) c =
       match fn with
       | OnReceive or' -> { c with onReceive = or' }
       | OnSend os -> { c with onSend = os }
