@@ -15,7 +15,7 @@ namespace MCDTP.IO.MemoryMappedFile.Partition
       logger              : Logger
     }
 
-    static member instance =
+    static member Instance =
       {
         fs                  = null
         readOrWrite         = None

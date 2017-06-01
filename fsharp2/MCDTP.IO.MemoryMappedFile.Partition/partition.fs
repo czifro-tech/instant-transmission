@@ -91,7 +91,7 @@ namespace MCDTP.IO.MemoryMappedFile.Partition
           return 0L
       }
 
-  type internal BufferState = Idle | Flushing | Replenishing
+  type internal BufferState = Idle | Flushing | Replenishing | Amending
   type ReadOrWrite = ReadOnly | WriteOnly
 
   type PartitionHandle(config:PartitionConfiguration) =
@@ -164,10 +164,11 @@ namespace MCDTP.IO.MemoryMappedFile.Partition
             false
         )
       let doTryFlush = bufferLock |> Sync.read(fun () -> bufferLength > flushThreshold)
-      if doTryFlush && readOrWrite = ReadOrWrite.WriteOnly then this.TryFlush()
+      if doTryFlush && readOrWrite = ReadOrWrite.WriteOnly then this.TryFlush(false)
       ret
 
     member this.ReadBytes(count:int) =
+      
       let ret =
         bufferLock
         |> Sync.write(fun () ->
@@ -191,21 +192,40 @@ namespace MCDTP.IO.MemoryMappedFile.Partition
       if doTryReplenish then this.TryReplenish()
       ret
 
-    member this.TryFlush() =
-      bufferStateLock
-      |> Sync.write(fun () ->
-        if bufferState = BufferState.Idle && bufferLength > flushThreshold then
-          bufferState <- BufferState.Flushing
-          this.Flush()
-      )
+    member this.TryFlush(force:bool) =
+      if readOrWrite = ReadOrWrite.WriteOnly then
+        bufferStateLock
+        |> Sync.write(fun () ->
+          if bufferState = BufferState.Idle && (force || bufferLength > flushThreshold) then
+            bufferState <- BufferState.Flushing
+            this.Flush()
+        )
 
     member internal this.TryReplenish() =
-      bufferStateLock
-      |> Sync.write(fun () ->
-        if bufferState = BufferState.Idle && bufferLength < replenishThreshold then
-          bufferState <- BufferState.Replenishing
-          this.Replenish()
-      )
+      if readOrWrite = ReadOrWrite.ReadOnly then
+        bufferStateLock
+        |> Sync.write(fun () ->
+          if bufferState = BufferState.Idle && bufferLength < replenishThreshold then
+            bufferState <- BufferState.Replenishing
+            this.Replenish()
+        )
+
+    member this.TryAmend(pos,bytes) =
+      if readOrWrite = ReadOrWrite.WriteOnly then
+        bufferStateLock
+        |> Sync.write(fun () ->
+          if bufferState = BufferState.Idle then
+            bufferState <- BufferState.Amending
+            let ret = this.Amend(pos,bytes)
+            bufferState <- BufferState.Idle
+            ret
+          else
+            let funcName = PartitionHandleImpl.functionName "PartitionHandle.TryAmend"
+            let msg = sprintf "Could not amend, buffer state: %A" bufferState
+            consoleLogger.LogWith(LogLevel.Info,funcName,msg)
+            false
+        )
+      else failwith "Partition is read only"
 
     member internal this.Flush() =
       let funcName = PartitionHandleImpl.functionName "PartitionHandle.Flush"
@@ -254,5 +274,36 @@ namespace MCDTP.IO.MemoryMappedFile.Partition
       |> Async.StartChild
       |> Async.RunSynchronously
       |> ignore
+
+    member internal __.Amend(pos:int64,bytes:byte[]) =
+      let funcName = PartitionHandleImpl.functionName "PartitionHandle.Amend"
+      // Performing a blocking buffer amend
+      // Asynchronous updating would invite
+      //  potential problems
+      // Use MemoryStream to amend buffer
+      bufferLock
+      |> Sync.write(fun () ->
+        try
+        if pos > currentPosition then
+          let success,nBuffer =
+            MemoryStream.asyncAmend pos bytes buffer
+            |> Async.RunSynchronously
+          if success then
+            let msg = sprintf "Successfully amended buffer at %d" pos
+            consoleLogger.LogWith(LogLevel.Debug,funcName,msg)
+            buffer <- nBuffer
+          else
+            let msg = "Failed to amend buffer"
+            consoleLogger.LogWith(LogLevel.Debug,funcName,msg)
+          success
+        else
+          let msg = "Buffer alrady flushed"
+          consoleLogger.LogWith(LogLevel.Debug,funcName,msg)
+          false
+        with
+        | ex ->
+          consoleLogger.Log(funcName + " threw exception",ex)
+          false
+      )
 
     member __.Feop() = positionLock |> Sync.read(fun () -> bytesProcessedCounter = size)
