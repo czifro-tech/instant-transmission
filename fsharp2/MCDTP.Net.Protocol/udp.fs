@@ -5,25 +5,32 @@ namespace MCDTP.Net.Protocol
 
   type UdpPacket =
     {
-      seqNum   : int64;
-      dLen     : int16;
-      rFlag    : byte;
-      data     : byte[];
+      seqNum   : int64
+      dLen     : int16
+      rFlag    : byte
+      data     : byte[]
     }
 
-    static member DefaultInstance() =
+    static member DefaultInstance =
       {
-        seqNum   = 0L;
-        dLen     = 0s;
+        seqNum   = 0L
+        dLen     = 0s
         rFlag    = Type.nullByte
         data     = [||]
       }
+
+    static member RetransmitInstance =
+      { UdpPacket.DefaultInstance with
+          rFlag = 1uy }
 
     static member DefaultSize
       with get() = 512
 
     static member PayloadSize
       with get() = 500
+
+    static member IsRetransmissionPacket(packet:UdpPacket) =
+      packet.rFlag = Type.nullByte
 
   [<RequireQualifiedAccess>]
   module Udp =
