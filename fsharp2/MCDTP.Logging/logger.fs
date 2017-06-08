@@ -23,9 +23,13 @@ namespace MCDTP.Logging
       | _ -> failwithf "Invalid log level: %A" l
 
     type internal Message =
+      | PlainMessage of LogLevel * string * DateTime
       | ConsoleMessage of LogLevel * string * obj * DateTime
       | ThroughputMessage of LogLevel * int64 * DateTime * DateTime
-      | PacketsDroppedMessage of LogLevel * (int*int) * int * DateTime
+      | PacketsDroppedMessage of LogLevel * (int64*int64) * int * DateTime
+      | PacketDroppedMessage of LogLevel * int64 * DateTime
+      | RecoveredPacketMessage of LogLevel * int64 * DateTime
+      | RetransmittedPacketMessage of LogLevel * int64 * DateTime
 
     [<AllowNullLiteral>]
     type ConsoleLogger() =
@@ -180,10 +184,50 @@ namespace MCDTP.Logging
             throughput <- 0L
           lastThroughputLogEvent <- DateTime.MinValue
 
-      member this.LogPacketsDropped(level:LogLevel,range:(int*int),packetSize:int) =
+      member this.LogPacketsDropped(level:LogLevel,range:(int64*int64),packetSize:int) =
         if disposed() then failwith "Logger is disposed!"
         if level <= logLevel && logLevel <> LogLevel.None && level <> LogLevel.None then
           let message = PacketsDroppedMessage(level,range,packetSize,DateTime.UtcNow)
+          locker
+          |> Sync.write(fun () ->
+            messageQueue <- messageQueue@[message]
+          )
+          this.TryRunLogger()
+
+      member this.LogPacketDropped(level:LogLevel,seqNum:int64) =
+        if disposed() then failwith "Logger is disposed!"
+        if level <= logLevel && logLevel <> LogLevel.None && level <> LogLevel.None then
+          let message = PacketDroppedMessage(level,seqNum,DateTime.UtcNow)
+          locker
+          |> Sync.write(fun () ->
+            messageQueue <- messageQueue@[message]
+          )
+          this.TryRunLogger()
+
+      member this.LogPacketRecovered(level:LogLevel,seqNum:int64) =
+        if disposed() then failwith "Logger is disposed!"
+        if level <= logLevel && logLevel <> LogLevel.None && level <> LogLevel.None then
+          let message = RecoveredPacketMessage(level,seqNum,DateTime.UtcNow)
+          locker
+          |> Sync.write(fun () ->
+            messageQueue <- messageQueue@[message]
+          )
+          this.TryRunLogger()
+
+      member this.LogRetransmittedPacket(level:LogLevel,seqNum:int64) =
+        if disposed() then failwith "Logger is disposed!"
+        if level <= logLevel && logLevel <> LogLevel.None && level <> LogLevel.None then
+          let message = RetransmittedPacketMessage(level,seqNum,DateTime.UtcNow)
+          locker
+          |> Sync.write(fun () ->
+            messageQueue <- messageQueue@[message]
+          )
+          this.TryRunLogger()
+
+      member this.LogPlainMessage(level:LogLevel,msg) =
+        if disposed() then failwith "Logger is disposed!"
+        if level <= logLevel && logLevel <> LogLevel.None && level <> LogLevel.None then
+          let message = PlainMessage(level,msg,DateTime.UtcNow)
           locker
           |> Sync.write(fun () ->
             messageQueue <- messageQueue@[message]
@@ -217,15 +261,31 @@ namespace MCDTP.Logging
                 | PacketsDroppedMessage (l,r,ps,now) ->
                   let l = getLogLevelName l
                   let startSeqNum,endSeqNum = r
-                  let packetsDroppedCount = (endSeqNum - startSeqNum) / ps
-                  packetDropCount <- packetDropCount + (int64 packetsDroppedCount)
-                  let packetsDropped = [| for i in 0..packetsDroppedCount-1 -> (i*ps)+startSeqNum |]
+                  let packetsDroppedCount = (endSeqNum - startSeqNum) / (int64 ps)
+                  packetDropCount <- packetDropCount + packetsDroppedCount
+                  let packetsDropped = [| for i in 0L..packetsDroppedCount-1L -> (i*(int64 ps))+startSeqNum |]
                   let m = sprintf "[%s][Packets Dropped][Time: %s][Sequence Numbers: %A]" l (now.ToString()) packetsDropped
+                  logFile.WriteLine(m)
+                | PacketDroppedMessage (l,s,now) ->
+                  let l = getLogLevelName l
+                  let m = sprintf "[%s][Packet Dropped][Time: %s][Sequence Number: %d]" l (now.ToString()) s
                   logFile.WriteLine(m)
                 | ThroughputMessage (l,t,s,e) ->
                   let l = getLogLevelName l
                   let interval = (e - s).ToString()
                   let m = sprintf "[%s][Throughput:%d][Start:%s][End:%s][Interval:%s]" l t (s.ToString()) (e.ToString()) interval
+                  logFile.WriteLine(m)
+                | RecoveredPacketMessage (l,s,now) ->
+                  let l = getLogLevelName l
+                  let m = sprintf "[%s][Recovered Packet][Time: %s][Sequence Number: %d]" l (now.ToString()) s
+                  logFile.WriteLine(m)
+                | RetransmittedPacketMessage (l,s,now) ->
+                  let l = getLogLevelName l
+                  let m = sprintf "[%s][Retransmitted Packet][Time: %s][Sequence Number: %d]" l (now.ToString()) s
+                  logFile.WriteLine(m)
+                | PlainMessage (l,msg,now) ->
+                  let l = getLogLevelName l
+                  let m = sprintf "[%s][Time: %s][Message: %s]" l (now.ToString()) msg
                   logFile.WriteLine(m)
                 | _ -> ()
               | None -> ()
