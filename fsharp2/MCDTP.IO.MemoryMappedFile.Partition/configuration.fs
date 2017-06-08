@@ -6,10 +6,16 @@ namespace MCDTP.IO.MemoryMappedFile.Partition
 
   type PartitionConfiguration =
     {
+      // not user set, i.e. not set with builder
       fs                  : FileStream
+
+      // true => read, false => write
       readOrWrite         : bool option
+
+      // not user set, i.e. not set with builder
       startPos            : int64
       size                : int64
+
       flushThreshold      : int64
       replenishThreshold  : int64
       logger              : Logger
@@ -30,10 +36,7 @@ namespace MCDTP.IO.MemoryMappedFile.Partition
   [<CompilationRepresentation (CompilationRepresentationFlags.ModuleSuffix)>]
   module PartitionConfiguration =
 
-    let fs_ = "fs"
     let readOrWrite_ = "readOrWrite"
-    let startPos_ = "startPos"
-    let size_ = "size"
     let flushThreshold_ = "flushThreshold"
     let replenishThreshold_ = "replenishThreshold"
     let logger_ = "logger"
@@ -43,12 +46,9 @@ namespace MCDTP.IO.MemoryMappedFile.Partition
 
     let set k (v:obj) s =
       match k with
-      | _ when k = fs_                  -> { s with fs = (v :?> FileStream) }
       | _ when k = readOrWrite_         ->
         if s.readOrWrite.IsNone then { s with readOrWrite = Some (v :?> bool) }
         else failwithf "Partition has already been set to %s" (getReadOrWriteAsString s)
-      | _ when k = startPos_            -> { s with startPos = (v :?> int64) }
-      | _ when k = size_                -> { s with size = (v :?> int64) }
       | _ when k = flushThreshold_      -> { s with flushThreshold = (v :?> int64) }
       | _ when k = replenishThreshold_  -> { s with replenishThreshold = (v :?> int64) }
       | _ when k = logger_              -> { s with logger = (v :?> Logger)}

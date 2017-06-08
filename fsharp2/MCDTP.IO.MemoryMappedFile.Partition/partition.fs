@@ -168,7 +168,6 @@ namespace MCDTP.IO.MemoryMappedFile.Partition
       ret
 
     member this.ReadBytes(count:int) =
-      
       let ret =
         bufferLock
         |> Sync.write(fun () ->
@@ -297,7 +296,7 @@ namespace MCDTP.IO.MemoryMappedFile.Partition
             consoleLogger.LogWith(LogLevel.Debug,funcName,msg)
           success
         else
-          let msg = "Buffer alrady flushed"
+          let msg = "Buffer already flushed"
           consoleLogger.LogWith(LogLevel.Debug,funcName,msg)
           false
         with

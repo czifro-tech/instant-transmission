@@ -13,19 +13,19 @@ namespace MCDTP.IO.MemoryMappedFile.Partition
 
     type PartitionBuilder with
 
-      [<CustomOperation ("startAt", MaintainsVariableSpaceUsingBind = true)>]
-      member __.StartAt (p,sp:int64) = PartitionConfiguration.set PartitionConfiguration.startPos_ sp p
-
-      [<CustomOperation ("size", MaintainsVariableSpaceUsingBind = true)>]
-      member __.Size (p,s:int64) = PartitionConfiguration.set PartitionConfiguration.size_ s p
-
       [<CustomOperation ("flushThreshold", MaintainsVariableSpaceUsingBind = true)>]
       member __.FlushThreshold (p,t:int64) = PartitionConfiguration.set PartitionConfiguration.flushThreshold_ t p
 
       [<CustomOperation ("replenishThreshold", MaintainsVariableSpaceUsingBind = true)>]
       member __.ReplenishThreshold (p,t:int64) = PartitionConfiguration.set PartitionConfiguration.replenishThreshold_ t p
 
-      [<CustomOperation ("usingFileStream", MaintainsVariableSpaceUsingBind = true)>]
-      member __.UsingFileStream (p,fs) = PartitionConfiguration.set PartitionConfiguration.fs_ fs p
+      [<CustomOperation ("isReadOnly", MaintainsVariableSpaceUsingBind = true)>]
+      member __.IsReadOnly(p) = PartitionConfiguration.set PartitionConfiguration.readOrWrite_ true p
+
+      [<CustomOperation ("isWriteOnly", MaintainsVariableSpaceUsingBind = true)>]
+      member __.IsWriteOnly(p) = PartitionConfiguration.set PartitionConfiguration.readOrWrite_ false p
+
+      [<CustomOperation ("attachLogger", MaintainsVariableSpaceUsingBind = true)>]
+      member __.AttachLogger (p,l:Logger) = PartitionConfiguration.set PartitionConfiguration.logger_ l p
 
     let partition = PartitionBuilder()
