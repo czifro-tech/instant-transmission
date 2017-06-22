@@ -20,7 +20,7 @@ namespace MCDTP.IO.MemoryMappedFile.Partition
     let writeToBuffer bytes buffer =
       let written,nBuffer = MemoryStream.asyncWrite bytes buffer |> Async.RunSynchronously
       if written <= 0 then None
-      else Some buffer
+      else Some nBuffer
     let readFromFile count (file:FileStream) =
       let bytes = Type.nullByteArray count
       let read = file.Read(bytes, 0, count)
@@ -28,8 +28,10 @@ namespace MCDTP.IO.MemoryMappedFile.Partition
       else Some bytes
     let writeToFile bytes (file:FileStream) =
       file.Write(bytes, 0, (Array.length bytes))
+      file.Flush()
 
-    let asyncCopyFromFile (count:int64) (file:FileStream) (logger':ConsoleLogger) (syncWriteToBuffer:byte[]->bool) =
+    let asyncCopyFromFile (count:int64) (file:FileStream) (logger':ConsoleLogger)
+      (syncWriteToBuffer:byte[]->(int64*bool)) =
       async {
         let funcName = functionName "PartitionHandleImpl.asyncCopyFromFile"
         try
@@ -42,16 +44,19 @@ namespace MCDTP.IO.MemoryMappedFile.Partition
             match ret with
             | Some b ->
               len <- len + (int64 (Array.length b))
-              if syncWriteToBuffer b then continue' <- false
+              let _,success = syncWriteToBuffer b
+              if success then continue' <- false
             | _ ->
               logger'.LogWith(LogLevel.Info,funcName,"File yielded no data, stopping copy process")
               continue' <- false
+              failwith "File yielded no data, stopping copy process"
           return len
         else
           let ret = readFromFile (int count) file
           match ret with
           | Some b ->
-            if syncWriteToBuffer b then return (int64 (Array.length b))
+            let _,success = syncWriteToBuffer b
+            if success then return (int64 (Array.length b))
             else return 0L
           | _ -> return 0L
         with
@@ -60,7 +65,8 @@ namespace MCDTP.IO.MemoryMappedFile.Partition
           return 0L
       }
 
-    let asyncFlushToFile (count:int64) (file:FileStream) (logger':ConsoleLogger) (syncReadFromBuffer:int->byte[] option) =
+    let asyncFlushToFile (count:int64) (file:FileStream) (logger':ConsoleLogger)
+      (syncReadFromBuffer:int->(int64*byte[]) option) =
       async {
         let funcName = functionName "PartitionHandleImpl.asyncFlushToFile"
         try
@@ -71,9 +77,11 @@ namespace MCDTP.IO.MemoryMappedFile.Partition
             let take = int (min (count - len) (int64 System.Int32.MaxValue))
             let ret = syncReadFromBuffer take
             match ret with
-            | Some b ->
+            | Some (_,b) ->
               len <- len + (int64 (Array.length b))
               writeToFile b file
+              let msg = sprintf "Flush from buffer to file: %A" b
+              logger'.LogWith(LogLevel.Info,funcName,msg)
             | _ ->
               logger'.LogWith(LogLevel.Info,funcName,"Buffer yielded no data, stopping flush process")
               continue' <- false
@@ -81,8 +89,10 @@ namespace MCDTP.IO.MemoryMappedFile.Partition
         else
           let ret = syncReadFromBuffer (int count)
           match ret with
-          | Some b ->
+          | Some (_,b) ->
             writeToFile b file
+            let msg = sprintf "Flush from buffer to file: %A" b
+            logger'.LogWith(LogLevel.Info,funcName,msg)
             return (int64 (Array.length b))
           | _ -> return 0L
         with
@@ -92,13 +102,16 @@ namespace MCDTP.IO.MemoryMappedFile.Partition
       }
 
   type internal BufferState = Idle | Flushing | Replenishing | Amending
+  type internal FileStreamState = Idle | PerformingIO
   type ReadOrWrite = ReadOnly | WriteOnly
 
   type PartitionHandle(config:PartitionConfiguration) =
 
     let consoleLogger =
-      match config.logger with
-      | ConsoleLogger l -> l
+      match Logger.ofConfig config.logger with
+      | ConsoleLogger l ->
+        l.LogLevel <- LogLevel.Info
+        l
       | _ -> failwith "Partition requires MCDTP.Logging.ConsoleLogger"
 
     let mutable buffer =
@@ -118,6 +131,8 @@ namespace MCDTP.IO.MemoryMappedFile.Partition
     let mutable bufferLength = 0L
 
     let fileStream = config.fs
+    let mutable fileStreamState = FileStreamState.Idle
+    let fileStreamStateLock = Sync.createLock()
     let startPosition = config.startPos
     let mutable currentPosition = config.startPos
     let endPosition = config.startPos + config.size
@@ -129,13 +144,24 @@ namespace MCDTP.IO.MemoryMappedFile.Partition
     let mutable bufferState = BufferState.Idle
     let bufferStateLock = Sync.createLock()
 
+    let fileStreamInUse() =
+      fileStreamStateLock
+      |> Sync.read(fun () ->
+        fileStreamState = FileStreamState.PerformingIO
+      )
+
+    member __.ReadOrWrite = readOrWrite
+    member __.StartPosition = startPosition
+    member __.EndPosition = endPosition
+
     member this.InitializeBuffer() =
       let funcName = PartitionHandleImpl.functionName "PartionHandle.InitializeBuffer"
       try
-      let asyncInit = PartitionHandleImpl.asyncCopyFromFile (replenishThreshold*2L) fileStream consoleLogger this.WriteBytes
+      let size' = min (replenishThreshold*2L) (int64 size)
+      consoleLogger.LogWith(LogLevel.Info,funcName,("Loading",size'))
+      let asyncInit = PartitionHandleImpl.asyncCopyFromFile size' fileStream consoleLogger this.WriteBytes
       let ret = asyncInit |> Async.RunSynchronously
       currentPosition <- currentPosition + ret
-      bytesProcessedCounter <- ret
       consoleLogger.LogWith(LogLevel.Info,funcName,ret)
       ret <> 0L
       with
@@ -153,19 +179,46 @@ namespace MCDTP.IO.MemoryMappedFile.Partition
           | Some nBuffer ->
             buffer <- nBuffer
             bufferLength <- bufferLength + (int64 (Array.length bytes))
-            consoleLogger.LogWith(LogLevel.Info,funcName,(bytes,buffer))
-            true
+            let pos = bytesProcessedCounter
+            if readOrWrite = ReadOrWrite.WriteOnly then
+              bytesProcessedCounter <- bytesProcessedCounter + (int64 (Array.length bytes))
+            consoleLogger.LogWith(LogLevel.Info,funcName,(pos,bytes,buffer))
+            pos,true
           | _ ->
             consoleLogger.Log(funcName,"Failed to write to buffer")
-            false
+            -1L,false
           with
           | ex ->
             consoleLogger.Log(funcName,ex)
-            false
+            -1L,false
         )
       let doTryFlush = bufferLock |> Sync.read(fun () -> bufferLength > flushThreshold)
       if doTryFlush && readOrWrite = ReadOrWrite.WriteOnly then this.TryFlush(false)
       ret
+
+    member this.WriteBytesAt(pos:int64,bytes:byte[]) =
+      let funcName = PartitionHandleImpl.functionName "PartitionHandle.ReadBytesAt"
+      // if the partition is in the midst of
+      //  an IO op, lets wait
+      while fileStreamInUse() do ()
+      fileStreamStateLock
+      |> Sync.write(fun () ->
+        fileStreamState <- FileStreamState.PerformingIO
+      )
+      let pos' = positionLock |> Sync.read(fun () -> currentPosition)
+      fileStream.Seek(pos,SeekOrigin.Begin) |> ignore
+      try
+      PartitionHandleImpl.writeToFile bytes fileStream
+      fileStream.Seek(pos',SeekOrigin.Begin) |> ignore
+      with
+      | ex ->
+        consoleLogger.LogWith(LogLevel.Error,funcName,ex)
+        let pos' = positionLock |> Sync.read(fun () -> currentPosition)
+        fileStream.Seek(pos',SeekOrigin.Begin) |> ignore
+      fileStreamStateLock
+      |> Sync.write(fun () ->
+        fileStreamState <- FileStreamState.Idle
+      )
 
     member this.ReadBytes(count:int) =
       let ret =
@@ -176,11 +229,15 @@ namespace MCDTP.IO.MemoryMappedFile.Partition
           match PartitionHandleImpl.readFromBuffer count buffer with
           | Some (bytes,nBuffer) ->
             buffer <- nBuffer
-            bufferLength <- bufferLength - (int64 count)
-            consoleLogger.LogWith(LogLevel.Info,funcName,(count,bytes,buffer))
-            Some bytes
+            bufferLength <- bufferLength - (int64 (Array.length bytes))
+            let pos = bytesProcessedCounter
+            if readOrWrite = ReadOrWrite.ReadOnly then
+              bytesProcessedCounter <- bytesProcessedCounter + (int64 (Array.length bytes))
+              consoleLogger.LogWith(LogLevel.Info,funcName,(pos,(Array.length bytes),bytes,buffer))
+            Some (pos,bytes)
           | _ ->
-            consoleLogger.Log(funcName,"Failed to read from buffer")
+            if currentPosition <> endPosition then
+              consoleLogger.Log(funcName,"Failed to read from buffer")
             None
           with
           | ex ->
@@ -188,17 +245,59 @@ namespace MCDTP.IO.MemoryMappedFile.Partition
             None
         )
       let doTryReplenish = bufferLock |> Sync.read(fun () -> bufferLength < replenishThreshold)
-      if doTryReplenish then this.TryReplenish()
+      if doTryReplenish && readOrWrite = ReadOrWrite.ReadOnly then this.TryReplenish()
+      ret
+
+    member this.ReadBytesAt(pos:int64,count:int) =
+      let funcName = PartitionHandleImpl.functionName "PartitionHandle.ReadBytesAt"
+      // if the partition is in the midst of
+      //  an IO op, lets wait
+      while fileStreamInUse() do ()
+      fileStreamStateLock
+      |> Sync.write(fun () ->
+        fileStreamState <- FileStreamState.PerformingIO
+      )
+      let pos' = positionLock |> Sync.read(fun () -> currentPosition)
+      fileStream.Seek(pos,SeekOrigin.Begin) |> ignore
+      let bytesOp = PartitionHandleImpl.readFromFile count fileStream
+      let ret =
+        match bytesOp with
+        | Some bytes ->
+          let pos' = positionLock |> Sync.read(fun () -> currentPosition)
+          fileStream.Seek(pos',SeekOrigin.Begin) |> ignore
+          consoleLogger.LogWith(LogLevel.Info,funcName,(pos,count,bytes))
+          bytes
+        | _ ->
+          consoleLogger.LogWith(LogLevel.Error,funcName,"Could not read bytes at " + (string pos))
+          fileStream.Seek(pos',SeekOrigin.Begin) |> ignore
+          [||]
+      fileStreamStateLock
+      |> Sync.write(fun () ->
+        fileStreamState <- FileStreamState.Idle
+      )
       ret
 
     member this.TryFlush(force:bool) =
-      if readOrWrite = ReadOrWrite.WriteOnly then
+      if force then
+        this.ForceFlush()
+      elif readOrWrite = ReadOrWrite.WriteOnly then
         bufferStateLock
         |> Sync.write(fun () ->
-          if bufferState = BufferState.Idle && (force || bufferLength > flushThreshold) then
+          if bufferState = BufferState.Idle && bufferLength > flushThreshold then
             bufferState <- BufferState.Flushing
-            this.Flush()
+            this.Flush false
         )
+
+    member internal this.ForceFlush() =
+      let funcName = PartitionHandleImpl.functionName "PartitionHandle.ForceFlush"
+      let waitingForBufferToBeIdle() =
+        bufferStateLock
+        |> Sync.read(fun () -> bufferState <> BufferState.Idle)
+      if waitingForBufferToBeIdle() then
+        consoleLogger.LogWith(LogLevel.Info,funcName,"Waiting on buffer")
+        while waitingForBufferToBeIdle() do ()
+      consoleLogger.LogWith(LogLevel.Info,funcName,"Forcing flush")
+      this.Flush true
 
     member internal this.TryReplenish() =
       if readOrWrite = ReadOrWrite.ReadOnly then
@@ -226,16 +325,22 @@ namespace MCDTP.IO.MemoryMappedFile.Partition
         )
       else failwith "Partition is read only"
 
-    member internal this.Flush() =
+    member internal this.Flush force =
       let funcName = PartitionHandleImpl.functionName "PartitionHandle.Flush"
       let flusher =
         async {
           try
-          let! ret = PartitionHandleImpl.asyncFlushToFile flushThreshold fileStream consoleLogger this.ReadBytes
+          while fileStreamInUse() do ()
+          fileStreamStateLock
+          |> Sync.write(fun () ->
+            fileStreamState <- FileStreamState.PerformingIO
+          )
+          let flushAmount =
+            if force then bufferLength else flushThreshold
+          let! ret = PartitionHandleImpl.asyncFlushToFile flushAmount fileStream consoleLogger this.ReadBytes
           positionLock
           |> Sync.write(fun () ->
             currentPosition <- currentPosition + ret
-            bytesProcessedCounter <- bytesProcessedCounter + ret
           )
           with
           | ex ->
@@ -243,6 +348,10 @@ namespace MCDTP.IO.MemoryMappedFile.Partition
           bufferStateLock
           |> Sync.write(fun () ->
             bufferState <- BufferState.Idle
+          )
+          fileStreamStateLock
+          |> Sync.write(fun () ->
+            fileStreamState <- FileStreamState.Idle
           )
         }
       flusher
@@ -255,11 +364,15 @@ namespace MCDTP.IO.MemoryMappedFile.Partition
       let replenisher =
         async {
           try
+          while fileStreamInUse() do ()
+          fileStreamStateLock
+          |> Sync.write(fun () ->
+            fileStreamState <- FileStreamState.PerformingIO
+          )
           let! ret = PartitionHandleImpl.asyncCopyFromFile replenishThreshold fileStream consoleLogger this.WriteBytes
           positionLock
           |> Sync.write(fun () ->
             currentPosition <- currentPosition + ret
-            bytesProcessedCounter <- bytesProcessedCounter + ret
           )
           with
           | ex ->
@@ -267,6 +380,10 @@ namespace MCDTP.IO.MemoryMappedFile.Partition
           bufferStateLock
           |> Sync.write(fun () ->
             bufferState <- BufferState.Idle
+          )
+          fileStreamStateLock
+          |> Sync.write(fun () ->
+            fileStreamState <- FileStreamState.Idle
           )
         }
       replenisher
