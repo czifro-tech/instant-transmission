@@ -24,9 +24,10 @@ namespace MCDTP.Net.PacketManagement
           this.NetworkLogger.LogPacketDropped(LogLevel.Error,seqNum)
           if this.Timer |> isNull then
             let cb = TimerCallback(this.RetransmitCallback)
+            // Using only a due time, periodic is self managed
             this.Timer <- new Timer(cb,null,this.RetransmitInterval,Timeout.Infinite)
 
-      member this.AcknowlegdePacket(seqNum:int64) =
+      member this.AcknowledgePacket(seqNum:int64) =
         let inRecovery =
           this.RecoveryLock
           |> Sync.read(fun () -> this.Recovery |> List.exists(fun s -> s = seqNum))
@@ -37,10 +38,11 @@ namespace MCDTP.Net.PacketManagement
         if inRecovery then
           this.RecoveryLock
           |> Sync.write(fun () ->
-            this.Recovery <- this.Recovery |> List.except (seq { for s in [|seqNum|] -> s })
+            this.Recovery <- this.Recovery |> List.filter(fun s -> s <> seqNum)
           )
         elif inRetransmit then
           this.AckInRetransmit(seqNum)
+        this.NetworkLogger.LogPacketRecovered(LogLevel.Info,seqNum)
       
       member internal this.AckInRetransmit(seqNum:int64) =
         let ack =
@@ -67,53 +69,69 @@ namespace MCDTP.Net.PacketManagement
             |> Sync.read(fun () -> List.length this.Retransmit < this.WindowSize)
           while continueMove() do
             do! PacketManagerImpl.asyncMoveFromRecoveryToRetransmit nso atr of' nl
+          this.PamrtrLock
+          |> Sync.write(fun () ->
+            this.PerformingAsyncMoveRecoveryToRetransmit <- false
+          )
         }
 
       member internal this.TryGetNextRecoverySeq() =
         this.RecoveryLock
         |> Sync.write(fun () ->
-          let hOp = this.Recovery |> List.tryHead
-          match hOp with
-          | Some h -> this.Recovery <- this.Recovery |> List.tail
-          | _ -> ()
-          hOp
+          this.Recovery |> List.tryHead
         )
 
       member internal this.AddToRetransmit(packet:UdpPacket) =
         this.RetransmitLock
         |> Sync.write(fun () ->
-          this.Retransmit <- this.Retransmit@[packet]
+          if not <| (this.Retransmit |> List.exists(fun p -> p.seqNum = packet.seqNum)) then
+            this.Retransmit <- this.Retransmit@[packet]
+        )
+        this.RecoveryLock
+        |> Sync.write(fun () ->
+          this.Recovery <- this.Recovery |> List.filter(fun s -> s <> packet.seqNum)
         )
 
       member internal this.RetransmitCallback _ =
         this.Timer.Change(Timeout.Infinite,Timeout.Infinite) |> ignore
-
+        let stillInRecovery =
+          this.RecoveryLock
+          |> Sync.read(fun () -> not <| List.isEmpty this.Recovery)
+        let stillInRetransmit =
+          this.RetransmitLock
+          |> Sync.read(fun () -> not <| List.isEmpty this.Retransmit)
         if this.Mode = Server then
           let retransmit =
             this.RetransmitLock
             |> Sync.read(fun () ->
               let take = min (this.WindowSize/2) (List.length this.Retransmit)
-              this.Retransmit |> List.take (this.WindowSize / 2)
+              this.Retransmit |> List.take take
             )
           if not <| List.isEmpty retransmit then
+            if retransmit |> List.head |> UdpPacket.IsEndPacket &&
+                this.Mode <> ServerRetransmitting then
+              this.Mode <- ServerRetransmitting
+              let message = "Popped end packet, switching to retransmit mode"
+              this.NetworkLogger.LogPlainMessage(LogLevel.Info,message)
             retransmit
             |> List.iter(fun p ->
-              this.NetworkLogger.LogRetransmittedPacket(LogLevel.Debug,p.seqNum)
+              this.NetworkLogger.LogRetransmittedPacket(LogLevel.Info,p.seqNum)
             )
             this.BufferLock
             |> Sync.write(fun () ->
               this.Buffer <- retransmit@this.Buffer
             )
           else
-            this.NetworkLogger.LogPlainMessage(LogLevel.Info,"Nothing to retransmit")
+            if not <| stillInRecovery && not <| stillInRetransmit then
+              this.NetworkLogger.LogPlainMessage(LogLevel.Info,"Nothing to retransmit")
         elif this.Mode = ServerRetransmitting then
           let retransmit =
             this.RetransmitLock
             |> Sync.read(fun () ->
               let take = min (this.WindowSize/2) (List.length this.Retransmit)
-              this.Retransmit |> List.take (this.WindowSize / 2)
+              this.Retransmit |> List.take take
             )
-          if List.isEmpty retransmit then
+          if not <| List.isEmpty retransmit then
             let retransmitter =
               async {
                 do! PacketManagerImpl.asyncRetransmit retransmit this.OnRetransmit this.NetworkLogger
@@ -123,27 +141,33 @@ namespace MCDTP.Net.PacketManagement
             |> Async.RunSynchronously
             |> ignore
           else
-            this.NetworkLogger.LogPlainMessage(LogLevel.Info,"Nothing to retransmit")
+            if not <| stillInRecovery && not <| stillInRetransmit then
+              this.NetworkLogger.LogPlainMessage(LogLevel.Info,"Nothing to retransmit")
         else
           failwith "This is a server feature"
-        let stillInRecovery =
-          this.RecoveryLock
-          |> Sync.read(fun () -> not <| List.isEmpty this.Recovery)
-        let stillInRetransmit =
-          this.RetransmitLock
-          |> Sync.read(fun () -> not <| List.isEmpty this.Retransmit)
         let doAddToRetransmit =
           this.RetransmitLock
           |> Sync.read(fun () -> List.length this.Retransmit < this.WindowSize)
         let continueRetransmission = stillInRecovery || stillInRetransmit
         if stillInRecovery && doAddToRetransmit then
-          this.AsyncTryMoveFromRecoveryToRetransmit()
-          |> Async.StartChild
-          |> Async.RunSynchronously
-          |> ignore
+          this.PamrtrLock
+          |> Sync.write(fun () ->
+            if not <| this.PerformingAsyncMoveRecoveryToRetransmit then
+              this.PerformingAsyncMoveRecoveryToRetransmit <- true
+              this.AsyncTryMoveFromRecoveryToRetransmit()
+              |> Async.StartChild
+              |> Async.RunSynchronously
+              |> ignore
+          )
 
-        // If we need to continue, only set dueTime.
-        // No need to set periodic since we stop
-        //  the time at the beginning of this function
-        if continueRetransmission then
+        // If we are in Server mode, we need to continue
+        // Otherwise, we continue until we have nothing left
+        // Using only a due time, periodic is self managed
+        if continueRetransmission || not <| this.HasSwitchedToRetransmitMode() then
           this.Timer.Change(this.RetransmitInterval,Timeout.Infinite) |> ignore
+        else
+          this.OnSuccess()
+          this.Timer <- null
+
+      member this.HasSwitchedToRetransmitMode() =
+        this.Mode = ServerRetransmitting
