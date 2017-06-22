@@ -35,9 +35,9 @@ namespace MCDTP.IO.MemoryStream
               else len
             if take < len then
               // fill current tail, then add new tail with remaining bytes
-              let hBuffer = Array.append hBuffer (Array.take take bytes)
+              let hBuffer = Array.append hBuffer bytes.[..take-1]
               let buffer = hBuffer::(List.tail buffer)
-              let hBuffer = Array.take (len - take) bytes
+              let hBuffer = bytes.[..(len-take)-1]
               let buffer = hBuffer::buffer
               len, { state with buffer = List.rev buffer }
             else
@@ -64,10 +64,10 @@ namespace MCDTP.IO.MemoryStream
             | h::t ->
               let len = Array.length h
               if len < take' then
-                let bytes,buffer = pull (take' - len) t
-                (Array.append h bytes),buffer
+                let bytes,buffer' = pull (take' - len) t
+                (Array.append h bytes),buffer'
               else
-                (Array.take take' h), (Array.skip take' h)::t
+                h.[..take'-1], (h.[take'..])::t
             | _ -> [||],buffer
           let bytes,buffer = pull take state.buffer
           (Array.length bytes),bytes,({ state with buffer = buffer })
@@ -105,18 +105,17 @@ namespace MCDTP.IO.MemoryStream
                     x::xs
                   else // we need to wrap to next buffer
                     let take = (int len) - posInX
-                    bytes'
-                    |> Array.take take
+                    bytes'.[..take-1]
                     |> Array.iteri(fun i b ->
                       x.[posInX + i] <- b
                     )
                     // use pos so that pos' - pos = 0 placing
                     //  posInX at beginning of x on next call
-                    x::(amend pos (bytes' |> Array.skip take) xs)
+                    x::(amend pos bytes'.[take..] xs)
             | _ -> []
           amend pos bytes state.buffer
         let nState = { state with buffer = nBuffer }
-        nState.logger.LogWith(LogLevel.Debug,"MemoryStream.asyncAmend",(pos,bytes,nState))
+        nState.logger.LogWith(LogLevel.Info,"MemoryStream.asyncAmend",(pos,bytes,nState))
         return true,nState
         with
         | ex ->
