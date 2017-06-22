@@ -6,14 +6,16 @@ namespace MCDTP.Net.PacketManagement
 
   type PMAction =
     //       interval   action
-    | Flush of int * (byte[]->unit)
+    | Flush of int * (byte[]->bool->unit)
     //           interval   action
-    | Replenish of int * (int->byte[])
+    | Replenish of int * (int->(int64*byte[]))
     | Write of (byte[]->int64->unit)
     | Fetch of (int64->byte[])
     //                  report          ack
     | PacketAction of (int64->unit) * (int64->unit)
     | RetransmitModeAction of (UdpPacket->unit)
+    | FinishedAction of (unit->unit)
+    | SuccessAction of (unit->unit)
     | NoAction
 
   type PacketManagerConfiguration =
@@ -38,6 +40,12 @@ namespace MCDTP.Net.PacketManagement
       retransmitModeAction  : PMAction
       retransmitInterval    : int
 
+      // not set by user
+      // server -> FinishedAction, client -> NoAction
+      finishedAction        : PMAction
+      // server -> SuccessAction, client -> NoAction
+      successAction         : PMAction
+
       // expected logger is NetworkLogger
       logger                : Logger
     }
@@ -51,6 +59,8 @@ namespace MCDTP.Net.PacketManagement
         packetAction          = PMAction.NoAction
         retransmitModeAction  = PMAction.NoAction
         retransmitInterval    = 0
+        finishedAction        = PMAction.NoAction
+        successAction         = PMAction.NoAction
         logger                = Logger.NoLogger
       }
 
@@ -63,8 +73,9 @@ namespace MCDTP.Net.PacketManagement
     let recoveryAction_ = "recoveryAction"
     let packetAction_ = "packetAction"
     let retransmitModeAction_ = "retransmitModeAction"
+    let finishedAction_ = "finishedAction"
+    let successAction_ = "successAction"
     let retransmitInterval_ = "retransmitInterval"
-    let logger_ = "logger"
 
     let set k (o:obj) p =
       match k with
@@ -74,5 +85,6 @@ namespace MCDTP.Net.PacketManagement
       | _ when k = packetAction_          -> { p with packetAction = (o :?> PMAction) }
       | _ when k = retransmitModeAction_  -> { p with retransmitModeAction = (o:?> PMAction) }
       | _ when k = retransmitInterval_    -> { p with retransmitInterval = (o :?> int) }
-      | _ when k = logger_                -> { p with logger = (o :?> Logger) }
+      | _ when k = finishedAction_        -> { p with finishedAction = (o :?> PMAction) }
+      | _ when k = successAction_         -> { p with successAction = (o :?> PMAction) }
       | _ -> failwithf "Unknown key '%s'" k
