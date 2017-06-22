@@ -8,7 +8,9 @@ namespace MCDTP.Net.PacketManagement
 
     type PacketManagerBuilder() =
 
-      member __.Return() = PacketManagerConfiguration.Instance
+      member __.Return _ = PacketManagerConfiguration.Instance
+
+      member __.Bind (p1:PacketManagerConfiguration,_) = p1
 
     type PacketManagerBuilder with
 
@@ -40,8 +42,12 @@ namespace MCDTP.Net.PacketManagement
       member __.RetransmitFrequency(p,i:int) =
         PacketManagerConfiguration.set PacketManagerConfiguration.retransmitInterval_ i p
 
-      [<CustomOperation ("attachLogger", MaintainsVariableSpaceUsingBind = true)>]
-      member __.AttachLogger(p,l:Logger) =
-        PacketManagerConfiguration.set PacketManagerConfiguration.logger_ l p
+      [<CustomOperation ("onFinished", MaintainsVariableSpaceUsingBind = true)>]
+      member __.OnFinished(p,a:PMAction) =
+        PacketManagerConfiguration.set PacketManagerConfiguration.finishedAction_ a p
+
+      [<CustomOperation ("onSuccess", MaintainsVariableSpaceUsingBind = true)>]
+      member __.OnSuccess(p,a:PMAction) =
+        PacketManagerConfiguration.set PacketManagerConfiguration.successAction_ a p
 
     let packetManager = PacketManagerBuilder()
