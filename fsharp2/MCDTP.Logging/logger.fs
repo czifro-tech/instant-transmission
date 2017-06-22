@@ -22,6 +22,9 @@ namespace MCDTP.Logging
       | LogLevel.None -> "None"
       | _ -> failwithf "Invalid log level: %A" l
 
+    let getFormattedDateTime (d:DateTime) =
+      d.ToString("HH:mm:ss:fffff")
+
     type internal Message =
       | PlainMessage of LogLevel * string * DateTime
       | ConsoleMessage of LogLevel * string * obj * DateTime
@@ -91,7 +94,7 @@ namespace MCDTP.Logging
                 match message with
                 | ConsoleMessage (l,msg,o,now) ->
                   let l = getLogLevelName l
-                  let m = sprintf "[%s][%s][%s]> Message: %s, Data: %A" l (now.ToString()) loggerId msg o
+                  let m = sprintf "[%s][%s][%s]> Message: %s, Data: %A" l (getFormattedDateTime now) loggerId msg o
                   printfn "%s" m
                 | _ -> ()
               | _ -> ()
@@ -122,10 +125,10 @@ namespace MCDTP.Logging
     [<AllowNullLiteral>]
     type NetworkLogger(fileName) =
 
-      let logFileName = Path.Combine(Directory.GetCurrentDirectory(), fileName)
+      let logFileName = Path.Combine(Directory.GetCurrentDirectory(), fileName + ".log")
       let mutable logFile = null;
       do
-        let fs = File.Create(logFileName)
+        let fs = new FileStream(logFileName,FileMode.Create,FileAccess.Write,FileShare.ReadWrite)
         logFile <- new StreamWriter(fs)
       let logLevel = LogLevel.None
 
@@ -159,7 +162,7 @@ namespace MCDTP.Logging
           if lastThroughputLogEvent = DateTime.MinValue then // for our initial call
             lastThroughputLogEvent <- DateTime.UtcNow
             throughput <- throughput + (int64 byteCount)
-          elif now - lastThroughputLogEvent > throughputInterval then
+          elif (now - lastThroughputLogEvent).Seconds > throughputInterval.Seconds then
             throughput <- throughput + (int64 byteCount)
             let message = ThroughputMessage(level,throughput,lastThroughputLogEvent,now)
             locker
@@ -264,31 +267,34 @@ namespace MCDTP.Logging
                   let packetsDroppedCount = (endSeqNum - startSeqNum) / (int64 ps)
                   packetDropCount <- packetDropCount + packetsDroppedCount
                   let packetsDropped = [| for i in 0L..packetsDroppedCount-1L -> (i*(int64 ps))+startSeqNum |]
-                  let m = sprintf "[%s][Packets Dropped][Time: %s][Sequence Numbers: %A]" l (now.ToString()) packetsDropped
+                  let m = sprintf "[%s][Packets Dropped][Time: %s][Sequence Numbers: %A]" l (getFormattedDateTime now) packetsDropped
                   logFile.WriteLine(m)
                 | PacketDroppedMessage (l,s,now) ->
                   let l = getLogLevelName l
-                  let m = sprintf "[%s][Packet Dropped][Time: %s][Sequence Number: %d]" l (now.ToString()) s
+                  let m = sprintf "[%s][Packet Dropped][Time: %s][Sequence Number: %d]" l (getFormattedDateTime now) s
                   logFile.WriteLine(m)
                 | ThroughputMessage (l,t,s,e) ->
                   let l = getLogLevelName l
                   let interval = (e - s).ToString()
-                  let m = sprintf "[%s][Throughput:%d][Start:%s][End:%s][Interval:%s]" l t (s.ToString()) (e.ToString()) interval
+                  let s = getFormattedDateTime s
+                  let e = getFormattedDateTime e
+                  let m = sprintf "[%s][Throughput:%d][Start:%s][End:%s][Interval:%s]" l t s e interval
                   logFile.WriteLine(m)
                 | RecoveredPacketMessage (l,s,now) ->
                   let l = getLogLevelName l
-                  let m = sprintf "[%s][Recovered Packet][Time: %s][Sequence Number: %d]" l (now.ToString()) s
+                  let m = sprintf "[%s][Recovered Packet][Time: %s][Sequence Number: %d]" l (getFormattedDateTime now) s
                   logFile.WriteLine(m)
                 | RetransmittedPacketMessage (l,s,now) ->
                   let l = getLogLevelName l
-                  let m = sprintf "[%s][Retransmitted Packet][Time: %s][Sequence Number: %d]" l (now.ToString()) s
+                  let m = sprintf "[%s][Retransmitted Packet][Time: %s][Sequence Number: %d]" l (getFormattedDateTime now) s
                   logFile.WriteLine(m)
                 | PlainMessage (l,msg,now) ->
                   let l = getLogLevelName l
-                  let m = sprintf "[%s][Time: %s][Message: %s]" l (now.ToString()) msg
+                  let m = sprintf "[%s][Time: %s][Message: %s]" l (getFormattedDateTime now) msg
                   logFile.WriteLine(m)
                 | _ -> ()
               | None -> ()
+              logFile.Flush()
               log() // tail call
             log()
             Sync.write(fun () -> isRunning <- false) runningLocker
