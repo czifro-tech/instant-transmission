@@ -5,28 +5,28 @@ namespace MCDTP.Net.Protocol
 
   type TcpPacket =
     {
-      ptype        :  byte;
-      subtype      :  byte;
-      prl          :  byte;
-      memLimit     :  int64;
-      nPorts       :  int;
-      blkSize      :  int64;
-      cmd          :  int;
-      fnSize       :  int;
-      fileSize     :  int64;
+      ptype        :  byte
+      subtype      :  byte
+      prl          :  byte
+      nPorts       :  int
+      seqNum       :  int64
+      port         :  int
+      cmd          :  int
+      fnSize       :  int
+      fileSize     :  int64
     }
 
     static member DefaultInstance =
       {
-        ptype        =  Type.nullByte;
-        subtype      =  Type.nullByte;
-        prl          =  Type.nullByte;
-        memLimit     =  0L;
-        nPorts       =  0;
-        blkSize      =  0L;
-        cmd          =  0;
-        fnSize       =  0;
-        fileSize     =  0L;
+        ptype        =  Type.nullByte
+        subtype      =  Type.nullByte
+        prl          =  Type.nullByte
+        nPorts       =  0
+        seqNum       =  0L
+        port         =  0
+        cmd          =  0
+        fnSize       =  0
+        fileSize     =  0L
       }
 
     static member DefaultSize = 15
@@ -39,13 +39,14 @@ namespace MCDTP.Net.Protocol
   type TcpPacketSubType =
     // Specification
     | Request
-    | Exchange1 | Exchange2 | Exchange3
-    | Set1 | Set2 | Set3
+    | Exchange
+    | Set
     // Transfer
     | Prepare
     | Ready
     | Finished
-    | Checksum
+    | PacketLoss
+    | PacketAck
     | Success
     // Specification, Transfer, Unknown
     | Unknown
@@ -62,27 +63,24 @@ namespace MCDTP.Net.Protocol
     let getByte (enum:System.Object) =
       let byte =
         match enum with
-        | :? TcpPacketType as ptype     ->
+        | :? TcpPacketType as ptype         ->
           match ptype with
-          | TcpPacketType.Specification   -> byte 's'
-          | TcpPacketType.Transfer        -> byte 't'
-          | TcpPacketType.Unknown         -> byte 'u'
-        | :? TcpPacketSubType as subtype  ->
+          | TcpPacketType.Specification     -> byte 's'
+          | TcpPacketType.Transfer          -> byte 't'
+          | TcpPacketType.Unknown           -> byte 'u'
+        | :? TcpPacketSubType as subtype    ->
           match subtype with
           | TcpPacketSubType.Request        -> byte 'r'
-          | TcpPacketSubType.Exchange1      -> byte 'B'
-          | TcpPacketSubType.Exchange2      -> byte 'P'
-          | TcpPacketSubType.Exchange3      -> byte 'N'
-          | TcpPacketSubType.Set1           -> byte 'b'
-          | TcpPacketSubType.Set2
+          | TcpPacketSubType.Exchange       -> byte 'N'
+          | TcpPacketSubType.Set            -> byte 'n'
           | TcpPacketSubType.Prepare        -> byte 'p'
-          | TcpPacketSubType.Set3           -> byte 'n'
           | TcpPacketSubType.Ready          -> byte 'R'
           | TcpPacketSubType.Finished       -> byte 'f'
-          | TcpPacketSubType.Checksum       -> byte 'c'
+          | TcpPacketSubType.PacketLoss     -> byte 'l'
+          | TcpPacketSubType.PacketAck      -> byte 'a'
           | TcpPacketSubType.Success        -> byte 'S'
           | TcpPacketSubType.Unknown        -> byte 'u'
-        | _                               -> Type.nullByte
+        | _                                 -> Type.nullByte
       internalLogger.LogWith(LogLevel.Info,"Tcp.getbyte",(enum,byte))
       byte
 
@@ -93,12 +91,8 @@ namespace MCDTP.Net.Protocol
         let subtype =
           match x with
           | 'r' -> Request
-          | 'B' -> Exchange1
-          | 'P' -> Exchange2
-          | 'N' -> Exchange3
-          | 'b' -> Set1
-          | 'p' -> Set2
-          | 'n' -> Set3
+          | 'N' -> Exchange
+          | 'n' -> Set
           | _   -> Unknown
         if subtype = Unknown then
           TcpPacketType.Unknown, TcpPacketSubType.Unknown
@@ -111,8 +105,9 @@ namespace MCDTP.Net.Protocol
           | 'p' -> Prepare
           | 'R' -> Ready
           | 'f' -> Finished
-          | 'c' -> Checksum
-          | 's' -> Success
+          | 'l' -> PacketLoss
+          | 'a' -> PacketAck
+          | 'S' -> Success
           | _   -> Unknown
         if subtype = Unknown then
           TcpPacketType.Unknown, TcpPacketSubType.Unknown
@@ -149,10 +144,8 @@ namespace MCDTP.Net.Protocol
             match parsePacketTypeFromPacket packet with
             | Specification, x ->
               match x with
-              | Request          -> packetOption
-              | Exchange1 | Set1 -> Some { packet with blkSize = Conversion.bytesToInt64 bytes.[2..9] }
-              | Exchange2 | Set2 -> Some { packet with prl = bytes.[2] }
-              | Exchange3 | Set3 -> Some { packet with nPorts = Conversion.bytesToInt bytes.[2..5] }
+              | Request        -> packetOption
+              | Exchange | Set -> Some { packet with nPorts = Conversion.bytesToInt bytes.[2..5] }
               | _ -> None
             | _ -> None
           | _ -> None
@@ -168,10 +161,15 @@ namespace MCDTP.Net.Protocol
             match parsePacketTypeFromPacket packet with
             | Transfer, x ->
               match x with
-              | Request  -> Some { packet with fnSize = Conversion.bytesToInt bytes.[2..5] }
-              | Prepare  -> Some { packet with fileSize = Conversion.bytesToInt64 bytes.[2..9] }
-              | Ready
-              | Finished -> packetOption
+              | Request     -> Some { packet with fnSize = Conversion.bytesToInt bytes.[2..5] }
+              | Prepare     -> Some { packet with fileSize = Conversion.bytesToInt64 bytes.[2..9] }
+              | Ready       -> packetOption
+              | Finished
+              | Success     -> Some { packet with port = Conversion.bytesToInt bytes.[2..5] }
+              | PacketAck
+              | PacketLoss  -> Some { packet with
+                                        seqNum = Conversion.bytesToInt64 bytes.[2..9]
+                                        port = Conversion.bytesToInt bytes.[10..14] }
               | _ -> None
             | _ -> None
           | _ -> None
@@ -237,10 +235,8 @@ namespace MCDTP.Net.Protocol
             match parsePacketTypeFromPacket packet with
             | Specification, x ->
               match x with
-              | Request          -> bytesOption
-              | Exchange1 | Set1 -> Some (bytes |> insertAsBytes packet.blkSize 2)
-              | Exchange2 | Set2 -> Some (bytes |> insertAsBytes packet.prl 2)
-              | Exchange3 | Set3 -> Some (bytes |> insertAsBytes packet.nPorts 2)
+              | Request        -> bytesOption
+              | Exchange | Set -> Some (bytes |> insertAsBytes packet.nPorts 2)
               | _ -> None
             | _ -> None
           | _ -> None
@@ -256,10 +252,15 @@ namespace MCDTP.Net.Protocol
             match parsePacketTypeFromPacket packet with
             | Transfer, x ->
               match x with
-              | Request  -> Some (bytes |> insertAsBytes packet.fnSize 2)
-              | Prepare  -> Some (bytes |> insertAsBytes packet.fileSize 2)
-              | Ready
-              | Finished -> bytesOption
+              | Request    -> Some (bytes |> insertAsBytes packet.fnSize 2)
+              | Prepare    -> Some (bytes |> insertAsBytes packet.fileSize 2)
+              | Ready      -> bytesOption
+              | Finished
+              | Success    -> Some (bytes |> insertAsBytes packet.port 2)
+              | PacketAck
+              | PacketLoss -> Some (bytes
+                                    |> insertAsBytes packet.seqNum 2
+                                    |> insertAsBytes packet.port 10)
               | _ -> None
             | _ -> None
           | _ -> None
