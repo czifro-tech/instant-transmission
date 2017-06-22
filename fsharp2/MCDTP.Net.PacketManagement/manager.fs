@@ -9,12 +9,25 @@ namespace MCDTP.Net.PacketManagement
 
     let private asyncUnpackPackets (packets:UdpPacket list) =
       async {
+        let mutable receivedEnd = false
         let data =
           packets
           |> List.map(fun p ->
-            p.seqNum,p.data
+            let modulo n m = ((n%m)+m)%m
+            let data =
+              if UdpPacket.IsEndPacket p then
+                receivedEnd <- true
+                Array.empty
+              else p.data |> Array.take p.dLen
+            let seqNum =
+              if UdpPacket.IsEndPacket p then
+                // keep seqNum % UdpPacket.PayloadSize == 0
+                let mod' = modulo p.seqNum (int64 UdpPacket.PayloadSize)
+                mod' + (p.seqNum - mod')
+              else p.seqNum
+            seqNum,data
           )
-        return data
+        return data,receivedEnd
       }
 
     let private asyncFillInMissingData (rawData:(int64*byte[]) list) (netLogger:NetworkLogger) =
@@ -50,14 +63,14 @@ namespace MCDTP.Net.PacketManagement
           |> List.toArray
       }
 
-    let asyncFlushPacketsToBuffer (packets:UdpPacket list) (onMissingPacketsDetected:int64[]->unit)
-      (onFlush:byte[]->unit) (netLogger:NetworkLogger) =
+    let asyncFlushPacketsToBuffer (packets:UdpPacket list) force (onMissingPacketsDetected:int64[]->bool->unit)
+      (onFlush:byte[]->bool->unit) (netLogger:NetworkLogger) =
       async {
-        let! unpackedPackets = asyncUnpackPackets packets
+        let! unpackedPackets,receivedEnd = asyncUnpackPackets packets
         let! missingPacketRanges,data = asyncFillInMissingData unpackedPackets netLogger
         let! missingPackets = asyncCompileMissingPacketsList missingPacketRanges
-        onMissingPacketsDetected missingPackets
-        onFlush data
+        onMissingPacketsDetected missingPackets receivedEnd
+        onFlush data force
       }
 
     let asyncReportDroppedPackets (seqNums:int64[]) (onDropped:int64->unit) =
@@ -65,30 +78,32 @@ namespace MCDTP.Net.PacketManagement
         seqNums |> Array.iter onDropped
       }
 
-    let asyncReplenishBuffer seqNumStart size (fromSource:int->byte[])
+    let asyncReplenishBuffer size (fromSource:int->(int64*byte[]))
       (onReplenish:UdpPacket list->unit) =
+      // fromSource: is the provided onReplenish from config
+      // onReplenish: is an internal function for adding packets
+      //                to buffer
       async {
         let newPacket data seqNum' =
           {
             UdpPacket.DefaultInstance with
               seqNum = seqNum'
-              dLen = Array.length data |> int16
+              dLen = Array.length data
               data = data
           }
-        let mutable seqNum = seqNumStart
-        let mutable bytes = fromSource size
+        let mutable seqNum,bytes = fromSource (size*UdpPacket.DefaultSize)
         let mutable packets : UdpPacket list = []
         while not <| Array.isEmpty bytes do
           let take = min UdpPacket.PayloadSize (Array.length bytes)
-          let chunk = bytes |> Array.take take
-          bytes <- bytes |> Array.skip take
+          let chunk = bytes.[..take-1]
+          bytes <- bytes.[take..]
           packets <- packets@[newPacket chunk seqNum]
           seqNum <- seqNum + (int64 <| Array.length chunk)
         packets <- packets |> List.sortBy(fun p -> p.seqNum)
         onReplenish packets
       }
 
-    let asyncRetransmit packets (onRetransmit:UdpPacket->unit) (netLogger:NetworkLogger) =
+    let asyncRetransmit (packets:UdpPacket list) (onRetransmit:UdpPacket->unit) (netLogger:NetworkLogger) =
       async {
         packets
         |> List.iter(fun p ->
@@ -107,9 +122,11 @@ namespace MCDTP.Net.PacketManagement
             let packet =
               { UdpPacket.RetransmitInstance with
                   seqNum = s
-                  dLen = Array.length data |> int16
+                  dLen = Array.length data
                   data = data }
             addToRetransmit packet
+            let msg = sprintf "Added %d to retransmit queue" s
+            netLogger.LogPlainMessage(LogLevel.Info,msg)
           else
             netLogger.LogPlainMessage(LogLevel.Error, "Failed to fetch packet data")
         | _ -> netLogger.LogPlainMessage(LogLevel.Info, "Nothing in recovery")
@@ -157,14 +174,17 @@ namespace MCDTP.Net.PacketManagement
     let retransmitLock = Sync.createLock()
     let retransmitInterval = config.retransmitInterval
     let mutable timer : Timer = null
+    let mutable endPacket : UdpPacket option = None
+    let mutable performingAsyncMoveRecoveryToRetransmit = false
+    let pamrtrLock = Sync.createLock()
     ////
 
     let mutable mode = if config.isServer then PMMode.Server else PMMode.Client
 
     let actionThreshold,onFlush,onReplenish =
       match config.bufferAction with
-      | Flush (i,a)     -> i,a,(fun _ -> [||])
-      | Replenish (i,a) -> i,ignore,a
+      | Flush (i,a)     -> i,a,(fun _ -> failwith "Unsupported")
+      | Replenish (i,a) -> i,(fun _ _ -> failwith "Unsupported"),a
       | _ -> failwithf "Unsupported buffer action: %A" config.bufferAction
 
     let onWrite,onFetch =
@@ -188,6 +208,22 @@ namespace MCDTP.Net.PacketManagement
                                       failwith "Server requires a retransmit mode action"
                                     else ignore
       | _ -> failwithf "Unsupported retransmit mode action: %A" config.retransmitModeAction
+
+    let onFinished =
+      match config.finishedAction with
+      | FinishedAction of' -> of'
+      | NoAction           -> if mode = Server || mode = ServerRetransmitting then
+                                failwith "Server requires a finished action"
+                              else ignore
+      | _ -> failwithf "Unsupported finished action: %A" config.finishedAction
+
+    let onSuccess =
+      match config.successAction with
+      | SuccessAction os -> os
+      | NoAction         -> if mode = Server || mode = ServerRetransmitting then
+                              failwith "Server requires a success action"
+                            else ignore
+      | _ -> failwithf "Unsupported success action: %A" config.successAction
 
     let networkLogger =
       match config.logger with
@@ -241,6 +277,14 @@ namespace MCDTP.Net.PacketManagement
 
     ///////// server side
     member internal __.OnReplenish = onReplenish
+    member internal __.OnFinished = onFinished
+    member __.EndPacket
+      with get() =
+        let t = endPacket
+        endPacket <- None
+        t
+      and set(value) = endPacket <- value
+        
     /////////
 
     ///////// server side retransmission/recovery
@@ -261,4 +305,9 @@ namespace MCDTP.Net.PacketManagement
       with get() = timer
       and set(value) = timer <- value
     member internal __.OnRetransmit = onRetransmitMode
+    member internal __.OnSuccess = onSuccess
+    member internal __.PerformingAsyncMoveRecoveryToRetransmit
+      with get() = performingAsyncMoveRecoveryToRetransmit
+      and set(value) = performingAsyncMoveRecoveryToRetransmit <- value
+    member internal __.PamrtrLock = pamrtrLock
     /////////
