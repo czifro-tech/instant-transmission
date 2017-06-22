@@ -46,8 +46,6 @@ namespace MCDTP.Logging
 
       member __.Bind (l1:LoggerConfiguration,f) = f l1
 
-      //member __.Zero () = LoggerConfiguration.empty
-
     type LoggerBuilder with
 
       [<CustomOperation ("useConsole", MaintainsVariableSpaceUsingBind = true)>]
