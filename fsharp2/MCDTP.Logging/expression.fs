@@ -18,7 +18,7 @@ namespace MCDTP.Logging
         let innerConfig = Map.add key value innerConfig
         wrap innerConfig
 
-      let return_ (config:LoggerConfiguration) =
+      let ofConfig (config:LoggerConfiguration) =
         let getField key config' =
           match Map.tryFind key config' with
           | Some x -> x
@@ -44,6 +44,10 @@ namespace MCDTP.Logging
 
       member __.Return _ = Logger.init()
 
+      member __.Bind (l1:LoggerConfiguration,f) = f l1
+
+      //member __.Zero () = LoggerConfiguration.empty
+
     type LoggerBuilder with
 
       [<CustomOperation ("useConsole", MaintainsVariableSpaceUsingBind = true)>]
@@ -58,7 +62,7 @@ namespace MCDTP.Logging
       [<CustomOperation ("logLevel", MaintainsVariableSpaceUsingBind = true)>]
       member inline __.LogLevel(l,ll) = Logger.set LoggerConfiguration.logLevel_ ll l
 
-      [<CustomOperation ("throuputInterval", MaintainsVariableSpaceUsingBind = true)>]
+      [<CustomOperation ("throughputInterval", MaintainsVariableSpaceUsingBind = true)>]
       member inline __.ThroughputInterval(l,i) = Logger.set LoggerConfiguration.throughputInterval_ i l
 
     let loggerConfig = LoggerBuilder()

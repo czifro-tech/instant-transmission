@@ -16,3 +16,11 @@ namespace MCDTP.Logging
     static member logLevel_ = "logLevel"
 
     static member throughputInterval_ = "throughputInterval"
+
+    static member appendId nId config =
+      let key = LoggerConfiguration.loggerId_
+      let (LoggerConfiguration config) = config
+      let oId = (Map.find key config) :?> string
+      let config = Map.remove key config
+      let id = oId + nId
+      LoggerConfiguration (Map.add key (id:>obj) config)
