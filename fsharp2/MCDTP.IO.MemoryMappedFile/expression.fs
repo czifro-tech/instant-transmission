@@ -7,7 +7,7 @@ namespace MCDTP.IO.MemoryMappedFile
 
     type MMFBuilder() =
 
-      member __.Return() = MMFConfiguration.Instance
+      member __.Return _ = MMFConfiguration.Instance
 
     type MMFBuilder with
 
@@ -16,8 +16,8 @@ namespace MCDTP.IO.MemoryMappedFile
         MMFConfiguration.set MMFConfiguration.partitionConfig_ p m
 
       [<CustomOperation ("handleFile", MaintainsVariableSpaceUsingBind = true)>]
-      member __.HandleFile(m,f) =
-        MMFConfiguration.set MMFConfiguration.fileName_ m f
+      member __.HandleFile(m,f:string) =
+        MMFConfiguration.set MMFConfiguration.fileName_ f m
 
       [<CustomOperation ("isReadOnly", MaintainsVariableSpaceUsingBind = true)>]
       member __.IsReadOnly(m) = MMFConfiguration.set MMFConfiguration.readOrWrite_ true m

@@ -11,6 +11,12 @@ namespace MCDTP.IO.MemoryMappedFile
       fileInfo   : FileInfo
     }
 
+    static member Instance =
+      {
+        partitions = [||]
+        fileInfo   = null
+      }
+
   [<RequireQualifiedAccess>]
   [<CompilationRepresentation (CompilationRepresentationFlags.ModuleSuffix)>]
   module MMF =
@@ -43,11 +49,14 @@ namespace MCDTP.IO.MemoryMappedFile
 
     let private ofPartitionConfig (conf:PartitionConfiguration) (fs:FileStream) pos size =
       fs.Seek(pos,SeekOrigin.Begin) |> ignore
+      let id = sprintf "-partition:%d" pos
+      let console = LoggerConfiguration.appendId id conf.logger
       let conf =
         { conf with
             fs = fs
             startPos = pos
-            size = size }
+            size = size
+            logger = console }
       new PartitionHandle(conf)
 
     let private toMMFState (config:MMFConfiguration) (file:FileInfo) partitionCount
@@ -60,7 +69,7 @@ namespace MCDTP.IO.MemoryMappedFile
                             else partitionSize
                           let fs = openFs config.fileName
                           let startPos = (int64 i) * partitionSize
-                          ofPartitionConfig config.partitionConfig fs startPos size
+                          ofPartitionConfig config.partitionConfig.Value fs startPos size
                      |]
         fileInfo   = file
       }

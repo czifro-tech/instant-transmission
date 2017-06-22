@@ -22,14 +22,16 @@ namespace MCDTP.IO.MemoryMappedFile
         fileSize         = -1L
       }
 
+  [<RequireQualifiedAccess>]
+  [<CompilationRepresentation (CompilationRepresentationFlags.ModuleSuffix)>]
   module MMFConfiguration =
 
     let partitionConfig_ = "partitionConfig"
     let fileName_ = "fileName"
     let readOrWrite_ = "readOrWrite"
 
-    let private getReadOrWriteAsString s =
-      if s.readOrWrite.Value then "read only" else "write only"
+    let private getReadOrWriteAsString m =
+      if m.readOrWrite.Value then "read only" else "write only"
 
     let set k (o:obj) m =
       match k with
@@ -37,5 +39,8 @@ namespace MCDTP.IO.MemoryMappedFile
       | _ when k = fileName_         -> { m with fileName = (o :?> string) }
       | _ when k = readOrWrite_      ->
         if m.readOrWrite.IsNone then { m with readOrWrite = Some (o :?> bool) }
-        else failwithf "MemoryMappedFile has already been set to %s" (getReadOrWriteAsString s)
+        else failwithf "MemoryMappedFile has already been set to %s" (getReadOrWriteAsString m)
       | _ -> failwithf "Unknown key '%s'" k
+
+    let setSize s m =
+      { m with fileSize = s }
