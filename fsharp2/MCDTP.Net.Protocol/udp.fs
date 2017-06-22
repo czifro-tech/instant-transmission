@@ -6,31 +6,41 @@ namespace MCDTP.Net.Protocol
   type UdpPacket =
     {
       seqNum   : int64
-      dLen     : int16
-      rFlag    : byte
+      dLen     : int
+      flag    : byte
       data     : byte[]
     }
 
     static member DefaultInstance =
       {
         seqNum   = 0L
-        dLen     = 0s
-        rFlag    = Type.nullByte
+        dLen     = 0
+        flag    = Type.nullByte
         data     = [||]
       }
 
     static member RetransmitInstance =
       { UdpPacket.DefaultInstance with
-          rFlag = 1uy }
+          flag = 1uy }
+
+    static member EndInstance =
+      { UdpPacket.DefaultInstance with
+          flag = 2uy }
 
     static member DefaultSize
-      with get() = 512
+      with get() = 65000
+
+    static member HeaderSize
+      with get() = 13
 
     static member PayloadSize
-      with get() = 500
+      with get() = UdpPacket.DefaultSize - UdpPacket.HeaderSize
 
     static member IsRetransmissionPacket(packet:UdpPacket) =
-      packet.rFlag = Type.nullByte
+      packet.flag = 1uy
+
+    static member IsEndPacket(packet:UdpPacket) =
+      packet.flag = 2uy
 
   [<RequireQualifiedAccess>]
   module Udp =
@@ -55,9 +65,9 @@ namespace MCDTP.Net.Protocol
           let packetOption =
             {
               seqNum = Conversion.bytesToInt64 bytes.[0..7];
-              dLen = Conversion.bytesToInt16 bytes.[8..9];
-              rFlag = bytes.[10];
-              data = bytes.[12..];
+              dLen = Conversion.bytesToInt bytes.[8..11];
+              flag = bytes.[12];
+              data = bytes.[13..];
             }
             |> Some
           internalLogger.LogWith(LogLevel.Debug,"Udp.Parser.tryParse",(bytes,packetOption))
@@ -82,8 +92,8 @@ namespace MCDTP.Net.Protocol
           |> Type.nullByteArray
           |> insertAsBytes packet.seqNum 0
           |> insertAsBytes packet.dLen 8
-          |> insertAsBytes packet.rFlag 10
-          |> insertAsBytes packet.data 12
+          |> insertAsBytes packet.flag 12
+          |> insertAsBytes packet.data 13
         internalLogger.LogWith(LogLevel.Debug,"Udp.Composer.tryCompose",(packet,bytes))
         Some bytes
         with
