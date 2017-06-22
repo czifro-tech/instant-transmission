@@ -18,7 +18,7 @@ namespace MCDTP.IO.MemoryMappedFile.Partition
 
       flushThreshold      : int64
       replenishThreshold  : int64
-      logger              : Logger
+      logger              : LoggerConfiguration
     }
 
     static member Instance =
@@ -29,7 +29,7 @@ namespace MCDTP.IO.MemoryMappedFile.Partition
         size                = 0L
         flushThreshold      = 0L
         replenishThreshold  = 0L
-        logger              = Logger.NoLogger
+        logger              = loggerConfig.Return()
       }
 
   [<RequireQualifiedAccess>]
@@ -39,17 +39,18 @@ namespace MCDTP.IO.MemoryMappedFile.Partition
     let readOrWrite_ = "readOrWrite"
     let flushThreshold_ = "flushThreshold"
     let replenishThreshold_ = "replenishThreshold"
-    let logger_ = "logger"
 
-    let private getReadOrWriteAsString s =
-      if s.readOrWrite.Value then "read only" else "write only"
+    let private getReadOrWriteAsString p =
+      if p.readOrWrite.Value then "read only" else "write only"
 
-    let set k (v:obj) s =
+    let set k (v:obj) p =
       match k with
       | _ when k = readOrWrite_         ->
-        if s.readOrWrite.IsNone then { s with readOrWrite = Some (v :?> bool) }
-        else failwithf "Partition has already been set to %s" (getReadOrWriteAsString s)
-      | _ when k = flushThreshold_      -> { s with flushThreshold = (v :?> int64) }
-      | _ when k = replenishThreshold_  -> { s with replenishThreshold = (v :?> int64) }
-      | _ when k = logger_              -> { s with logger = (v :?> Logger)}
+        if p.readOrWrite.IsNone then { p with readOrWrite = Some (v :?> bool) }
+        else failwithf "Partition has already been set to %s" (getReadOrWriteAsString p)
+      | _ when k = flushThreshold_      -> { p with flushThreshold = (v :?> int64) }
+      | _ when k = replenishThreshold_  -> { p with replenishThreshold = (v :?> int64) }
       | _                               -> failwithf "Unknown key '%s'" k
+
+    let attachLogger l p =
+      { p with PartitionConfiguration.logger = l }
