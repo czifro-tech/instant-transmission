@@ -15,6 +15,6 @@ namespace MCDTP.Net.Protocol
           loggerId "TCP/UDP Parser/Composer"
           logLevel LogLevel.Error
         }
-      match Logger.return_ config with
+      match Logger.ofConfig config with
       | ConsoleLogger logger -> logger
       | _ -> failwith "Wrong logger was created!"
