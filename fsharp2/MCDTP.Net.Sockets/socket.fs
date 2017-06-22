@@ -37,8 +37,7 @@ namespace MCDTP.Net.Sockets
       socket.Connect(ep)
 
     let private payloadSize (packet:TcpPacket) =
-      let size = packet.nPorts
-      let size = if size > 0 then size else packet.csumSize
+      let size = packet.nPorts * sizeof<Int32>
       let size = if size > 0 then size else -1
       size
 
@@ -88,24 +87,28 @@ namespace MCDTP.Net.Sockets
       }
 
     let asyncSend (data:obj*byte[]) (composer:obj->byte[]) (onSend:int->unit)
-      (onError:exn->unit) (consoleLogger:ConsoleLogger) (sock:Socket) =
+      (onError:exn->unit) (consoleLogger:ConsoleLogger) (sock:Socket)
+      (remoteEP:IPEndPoint) =
       async {
         let funcName = functionName "SocketHandleImpl.asyncSend"
         let packet,payload = data
         let bytes = payload |> Array.append (composer packet)
         let args' = new Args()
         args'.SetBuffer(bytes,0,Array.length bytes)
+        args'.RemoteEndPoint <- remoteEP
+        consoleLogger.LogWith(LogLevel.Info,funcName,("Send To",remoteEP))
         let callback (args:Args) =
           match args.SocketError with
           | SocketError.Success ->
             let sent = args.BytesTransferred
-            consoleLogger.LogWith(LogLevel.Info,funcName,(data,sent))
+            let bytesSent = args.Buffer
+            consoleLogger.LogWith(LogLevel.Info,funcName,(data,bytesSent,sent))
             onSend sent
           | e ->
-            consoleLogger.Log(funcName,(SocketException (int e)))
+            consoleLogger.LogWith(LogLevel.Error,funcName,(SocketException (int e)))
             onError (SocketException (int e)) // onError changes state and stores exception
             onSend -1 // onSend handles control flow
-        do! asyncDo sock.SendAsync callback args'
+        do! asyncDo sock.SendToAsync callback args'
       }
 
   type internal Message =
@@ -117,11 +120,14 @@ namespace MCDTP.Net.Sockets
   type internal ReceiveState = Receiving | Error | Idle
   type internal SendState = Sending | Error | Idle
 
+  [<AllowNullLiteral>]
   type SocketHandle internal () =
 
     let mutable socketType = SocketType.Unset
 
     let mutable sock : Socket = null
+    let mutable remoteEP : IPEndPoint = null
+    let mutable localEP : IPEndPoint = null
 
     let mutable messageQueue : Message list = []
     let messageQueueLock = Sync.createLock()
@@ -153,13 +159,22 @@ namespace MCDTP.Net.Sockets
 
     member __.SocketType
       with get() = socketType
-      and set(value) = socketType <- value
-    member internal __.Sock
-      with set(value) = sock <- value
-    member internal __.ConsoleLogger
-      with set(value) = consoleLogger <- value
-    member internal __.NetworkLogger
-      with set(value) = networkLogger <- value
+      and internal set(value) = socketType <- value
+    member __.Sock
+      with get() = sock
+      and internal set(value) = sock <- value
+    member __.RemoteEP
+      with get() = remoteEP
+      and internal set(value) = remoteEP <- value
+    member __.LocalEP
+      with get() = localEP
+      and internal set(value) = localEP <- value
+    member __.ConsoleLogger
+      with get() = consoleLogger
+      and internal set(value) = consoleLogger <- value
+    member __.NetworkLogger
+      with get() = networkLogger
+      and internal set(value) = networkLogger <- value
     member internal __.OnReceive
       with set(value) = onReceive <- value
     member internal __.OnSend
@@ -187,10 +202,11 @@ namespace MCDTP.Net.Sockets
         lastSendException <- null
         t
 
-    member this.SubmitTcpMessage(msg:obj,payload:byte[]) =
+    member this.SubmitMessage(msg:obj,payload:byte[]) =
       let funcName = SocketHandleImpl.functionName "SocketHandle.SubmitMessage"
       if disposed() then failwith "SocketHandle has been disposed"
       try
+      let mutable isRetransmit = false
       let exnPending =
         sendStateLock
         |> Sync.read(fun () -> not <| isNull lastSendException )
@@ -199,7 +215,9 @@ namespace MCDTP.Net.Sockets
       let messageOption =
         match msg with
         | :? TcpPacket as tcpPacket -> Some <| Message.TcpPacket(tcpPacket,payload)
-        | :? UdpPacket as udpPacket -> Some <| Message.UdpPacket(udpPacket,payload)
+        | :? UdpPacket as udpPacket ->
+          isRetransmit <- true
+          Some <| Message.UdpPacket(udpPacket,payload)
         | _ -> None
       match messageOption with
       | Some message ->
@@ -207,7 +225,8 @@ namespace MCDTP.Net.Sockets
         |> Sync.write(fun () ->
           messageQueue <- messageQueue@[message]
         )
-        consoleLogger.LogWith(LogLevel.Info,funcName,message)
+        if isRetransmit then
+          consoleLogger.LogWith(LogLevel.Info,funcName,message)
       | _ ->
         consoleLogger.LogWith(LogLevel.Info,funcName,(msg,payload,"Unknown"))
       this.TrySendNext()
@@ -270,7 +289,7 @@ namespace MCDTP.Net.Sockets
           match packet with
           | :? TcpPacket -> TcpPacket.DefaultSize
           | _            -> UdpPacket.DefaultSize
-        networkLogger.LogNumberOfBytesWith(LogLevel.Debug,(packetSize+(Array.length payload)))
+        networkLogger.LogNumberOfBytesWith(LogLevel.Info,(packetSize+(Array.length payload)))
         receiveStateLock |> Sync.write(fun () ->
           if receiveState = ReceiveState.Receiving then
             receiveState <- ReceiveState.Idle
@@ -311,8 +330,7 @@ namespace MCDTP.Net.Sockets
               match message with
               | UdpPacket (p,b) -> (p :> obj),b
               | TcpPacket (p,b) -> (p :> obj),b
-
-            do! SocketHandleImpl.asyncSend (p,b) composer os oe consoleLogger sock
+            do! SocketHandleImpl.asyncSend (p,b) composer os oe consoleLogger sock remoteEP
           | _ ->
             consoleLogger.LogWith(LogLevel.Info,funcName,"Message Queue Empty")
             // double check that queue is still empty and change state to idle if so
@@ -339,24 +357,21 @@ namespace MCDTP.Net.Sockets
       this.TrySendNext()
 
     member this.AcceptWithConfig(config:SocketConfiguration) =
-      let funcName = SocketHandleImpl.functionName "SocketHandle.Dispose"
+      let funcName = SocketHandleImpl.functionName "SocketHandle.AcceptWithConfig"
       let sh = new SocketHandle()
-      sh.ConsoleLogger <-
-        match config.logger1 with
-        | Logger.ConsoleLogger cl -> cl
-        | _ -> failwith "Expected a ConsoleLogger"
-      sh.NetworkLogger <-
-        match config.logger2 with
-        | Logger.NetworkLogger nl -> nl
-        | _ -> failwith "Expected a NetworkLogger"
       sh.SocketType <- (if config.isTcp then SocketType.Tcp else SocketType.Udp)
-      sh.OnReceive <- config.onReceive
-      sh.OnSend <- config.onSend
       sh.Parser <- config.parser
       sh.Composer <- config.composer
       sh.Sock <- sock.Accept()
+      if not config.isTcp then
+        sh.Sock.SendBufferSize <- UdpPacket.DefaultSize
+        sh.Sock.ReceiveBufferSize <- UdpPacket.DefaultSize
+      sh.RemoteEP <- (sh.Sock.RemoteEndPoint :?> IPEndPoint)
+      sh.OnReceive <- config.onReceive sh.RemoteEP.Port
+      sh.OnSend <- config.onSend sh.RemoteEP.Port
       consoleLogger.LogWith(LogLevel.Info,funcName,"Accepted new connection")
       sh
+      |> SocketHandle.AttachLoggers config
 
     interface IDisposable with
 
@@ -377,7 +392,7 @@ namespace MCDTP.Net.Sockets
                 receiveState = ReceiveState.Receiving
               )
               with :? System.ObjectDisposedException -> false
-            while stillReceiving() && stillSending() do
+            while stillReceiving() || stillSending() do
               if not <| stillReceiving() then
                 try receiveStateLock.Dispose() with _ -> ()
               elif not <| stillSending() then
@@ -394,7 +409,46 @@ namespace MCDTP.Net.Sockets
         |> Async.RunSynchronously
         |> ignore
 
-    static member NewListener(port,consoleLogger) =
+    static member internal AttachLoggers (config:SocketConfiguration) (sh:SocketHandle) =
+      let ipPortString =
+        if not <| isNull sh.LocalEP then
+          sh.LocalEP.ToString()
+        else
+          sh.RemoteEP.ToString()
+      let id = "-" + ipPortString
+      let id = if config.isTcp then id + "-tcp" else id + "-udp"
+      let console = LoggerConfiguration.appendId id config.logger1
+      let network = LoggerConfiguration.appendId id config.logger2
+      sh.ConsoleLogger <-
+        match Logger.ofConfig console with
+        | Logger.ConsoleLogger cl -> cl
+        | _ -> failwith "Expected a ConsoleLogger"
+      sh.NetworkLogger <-
+        match Logger.ofConfig network with
+        | Logger.NetworkLogger nl -> nl
+        | _ -> failwith "Expected a NetworkLogger"
+      sh
+
+  [<RequireQualifiedAccess>]
+  [<CompilationRepresentation (CompilationRepresentationFlags.ModuleSuffix)>]
+  module SocketHandle =
+
+    let getOpenPort() =
+      let mutable port = 64999
+      let checker port' =
+        let binder = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp)
+        try
+          binder.Bind(IPEndPoint(IPAddress.Any,port'))
+          binder.Dispose()
+          true
+        with
+        | _ ->
+          binder.Dispose()
+          false
+      while not <| checker port do port <- port-1
+      port
+
+    let newListener port consoleLogger =
       let sh = new SocketHandle()
       let sock = SocketHandleImpl.newV4TcpSocket()
       SocketHandleImpl.bind port sock
@@ -404,25 +458,52 @@ namespace MCDTP.Net.Sockets
       sh.ConsoleLogger <- consoleLogger
       sh
 
-    static member ConnectUsingConfig(config:SocketConfiguration) =
-      let sh = new SocketHandle()
-      sh.ConsoleLogger <-
-        match config.logger1 with
-        | Logger.ConsoleLogger cl -> cl
-        | _ -> failwith "Expected a ConsoleLogger"
-      sh.NetworkLogger <-
-        match config.logger2 with
-        | Logger.NetworkLogger nl -> nl
-        | _ -> failwith "Expected a NetworkLogger"
-      sh.SocketType <- (if config.isTcp then SocketType.Tcp else SocketType.Udp)
-      sh.OnReceive <- config.onReceive
-      sh.OnSend <- config.onSend
+    let private attachLoggers = SocketHandle.AttachLoggers
+
+    let private setupSocketHandle(config:SocketConfiguration) (sh:SocketHandle) =
+      let port =
+        if not <| isNull sh.LocalEP then sh.LocalEP.Port
+        else sh.RemoteEP.Port
+      sh.OnReceive <- config.onReceive port
+      sh.OnSend <- config.onSend port
       sh.Parser <- config.parser
       sh.Composer <- config.composer
-      let sock =
-        if config.isTcp then SocketHandleImpl.newV4TcpSocket()
-        else SocketHandleImpl.newV4UdpSocket()
+      sh
+      |> attachLoggers config
+
+    let bindUdp(config:SocketConfiguration) =
+      let funcName = SocketHandleImpl.functionName "SocketHandle.bindUdp"
+      let sh = new SocketHandle()
+      let sock = SocketHandleImpl.newV4UdpSocket()
+      SocketHandleImpl.bind config.port sock
+      sh.SocketType <- SocketType.Udp
+      sh.Sock <- sock
+      sh.LocalEP <- (sock.LocalEndPoint :?> IPEndPoint)
+      let sh = sh |> setupSocketHandle config
+      let msg = sprintf "UDP bound to: %s" (sh.LocalEP.ToString())
+      sh.ConsoleLogger.LogWith(LogLevel.Info,funcName,msg)
+      sh
+
+    let connectTcp(config:SocketConfiguration) =
+      let sh = new SocketHandle()
+      sh.SocketType <-
+        if config.isTcp then SocketType.Tcp
+        else failwith "UDP Configuration Not Supported"
+      let sock = SocketHandleImpl.newV4TcpSocket()
       sock
       |> SocketHandleImpl.connect config.ip config.port
       sh.Sock <- sock
+      sh.RemoteEP <- IPEndPoint(config.ip,config.port)
       sh
+      |> setupSocketHandle config
+
+    let connectUdp(config:SocketConfiguration) =
+      let sh = new SocketHandle()
+      sh.SocketType <-
+        if not <| config.isTcp then SocketType.Udp
+        else failwith "TCP Configuration Not Supported"
+      let sock = SocketHandleImpl.newV4UdpSocket()
+      sh.Sock <- sock
+      sh.RemoteEP <- IPEndPoint(config.ip,config.port)
+      sh
+      |> setupSocketHandle config
