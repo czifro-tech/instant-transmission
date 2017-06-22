@@ -216,7 +216,7 @@ namespace MCDTP.Net.Sockets
         match msg with
         | :? TcpPacket as tcpPacket -> Some <| Message.TcpPacket(tcpPacket,payload)
         | :? UdpPacket as udpPacket ->
-          isRetransmit <- true
+          isRetransmit <- udpPacket |> UdpPacket.IsRetransmissionPacket
           Some <| Message.UdpPacket(udpPacket,payload)
         | _ -> None
       match messageOption with
