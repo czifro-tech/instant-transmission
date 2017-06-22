@@ -8,9 +8,9 @@
     <Compile Include="configuration.fs" />
     <Compile Include="expression.fs" />
     <Compile Include="manager.fs" />
+    <Compile Include="recovery.fs" />
     <Compile Include="server.fs" />
     <Compile Include="client.fs" />
-    <Compile Include="recovery.fs" />
   </ItemGroup>
 
   <ItemGroup>
