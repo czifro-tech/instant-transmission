@@ -25,7 +25,4 @@ namespace MCDTP.IO.MemoryMappedFile.Partition
       [<CustomOperation ("isWriteOnly", MaintainsVariableSpaceUsingBind = true)>]
       member __.IsWriteOnly(p) = PartitionConfiguration.set PartitionConfiguration.readOrWrite_ false p
 
-      [<CustomOperation ("attachLogger", MaintainsVariableSpaceUsingBind = true)>]
-      member __.AttachLogger (p,l:Logger) = PartitionConfiguration.set PartitionConfiguration.logger_ l p
-
     let partition = PartitionBuilder()
