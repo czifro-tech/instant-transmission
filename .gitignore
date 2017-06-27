@@ -15,4 +15,5 @@ packages/
 *.docx
 *.pdf
 out/
+*.log
 **/.DS_Store
