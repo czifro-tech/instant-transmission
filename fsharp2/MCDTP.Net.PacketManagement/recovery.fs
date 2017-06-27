@@ -66,7 +66,7 @@ namespace MCDTP.Net.PacketManagement
           let nl = this.NetworkLogger
           let continueMove() =
             this.RetransmitLock
-            |> Sync.read(fun () -> List.length this.Retransmit < this.WindowSize)
+            |> Sync.read(fun () -> List.length this.Retransmit < this.WindowSize*4)
           while continueMove() do
             do! PacketManagerImpl.asyncMoveFromRecoveryToRetransmit nso atr of' nl
           this.PamrtrLock
