@@ -4,7 +4,7 @@ In order to approach the problem in a unique way, it was necessary to have a bac
 
 \section{Networking}
 
-The Transmission Control Protocol was invented in 1978 to provide a ``reliable host-to-host" protocol for network communication \cite{cerf1978specification}. By using packet reception acknowledgements and congestion control, TCP gave reliability insurance over the Internet Protocol and became the standard for network communication in 1983 \cite{andrews2013who}. The User Datagram Protocol was created in 1980 as an alternative to TCP \cite{postel1980user}\cite{kozierokr2005udp}. The purpose for designing UDP was for applications that needed faster communication. Both TCP and UDP are now standard protocols in the Transport layer of the network stack.
+The Transmission Control Protocol was invented in 1978 to provide a ``reliable host-to-host" protocol for network communication \cite{cerf1978specification}. By using packet reception acknowledgements and congestion control, TCP gave reliability insurance atop the Internet Protocol and became the standard for network communication in 1983 \cite{andrews2013who}. The User Datagram Protocol was created in 1980 as an alternative to TCP \cite{postel1980user}\cite{kozierokr2005udp}. The purpose for designing UDP was for applications that needed faster communication. Both TCP and UDP are now standard protocols in the Transport layer of the network stack.
 
 \subsection{Optimizing TCP}
 
@@ -28,7 +28,7 @@ Similar to Tsunami in its mechanics, RBUDP \cite{He2002} uses a TCP connection t
 
 The UDP Data Transfer protocol \cite{gu2007udt} is strictly a UDP-based protocol that imposes a congestion control mechanism on top of that. There are two UDP sockets used by UDT, one socket labeled ``Sender", the other labeled ``Receiver". The receiver socket would not only receive data, but it would be used for sending control information. UDT used TCP like messages for congestion control and reliability insurance. During a transfer from Chicago to Amsterdam, UDT had a throughput of 940Mbps over a 1Gbps link.
 
-Aspera's fasp protocol \cite{Aspera2016}\cite{Fan2010} is a UDP-based protocol that uses a rate-based control system by using early congestion notification and random early detection to adjust the rate of the transmission. fasp handles ratransmissions by resending packets at a rate that makes use of available bandwidth. This provides a continuous flow of data. Network utilization is kept at near 100\%.
+Aspera's fasp protocol \cite{Aspera2016}\cite{Fan2010} is a UDP-based protocol that uses a rate-based control system by using early congestion notification and random early detection to adjust the rate of the transmission. fasp handles ratransmissions by resending packets at a rate that makes use of available bandwidth. This provides a continuous flow of data. Aspera is capable of achieving a network utilization of nearly 100\%.
 
 \subsubsection{Network Stack Optimization}
 
@@ -43,7 +43,7 @@ Sivakumar et al. designed PSockets \cite{Sivakumar2000psockets} to be a socket p
 
 \section{Asynchrony}
 
-Though this paper does not focus on asynchrony, it is a part of the design choices and implementation of this project and thus is worth reviewing. Asynchrony started out as a way for processes to communicate with each other using unbounded buffer channels \cite{Josephs1989}. A process uses in and out channels for messaging and sharing data with other processes. The purpose is to provide non-blocking behavior. A process does not need to wait for a message or a piece of data to continue doing work, it reacts to incoming messages. This concept has worked its way into programming models and work scheduling \cite{Guo2009}\cite{Leijen2009}\cite{syme2011f}\cite{sutcliffe1988jackson}\cite{Cameron1986}\cite{Frigo1998}.
+Though this paper does not focus on the mechanics of asynchrony, it is a part of the design choices and implementation of this project and thus is worth reviewing. Asynchrony started out as a way for processes to communicate with each other using unbounded buffer channels \cite{Josephs1989}. A process uses in and out channels for messaging and sharing data with other processes. The purpose is to provide non-blocking behavior. A process does not need to wait for a message or a piece of data to continue doing work, it reacts to incoming messages. This concept has worked its way into programming models and work scheduling \cite{Guo2009}\cite{Leijen2009}\cite{syme2011f}\cite{sutcliffe1988jackson}\cite{Cameron1986}\cite{Frigo1998}.
 
 \subsection{Scheduling Asynchronous Work}
 
