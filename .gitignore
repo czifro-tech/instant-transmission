@@ -16,4 +16,5 @@ packages/
 *.pdf
 out/
 *.log
+**/*.dat
 **/.DS_Store

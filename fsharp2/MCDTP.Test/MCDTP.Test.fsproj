@@ -8,6 +8,8 @@
   <ItemGroup>
     <Compile Include="networkTests.fs" />
     <Compile Include="testRunner.fs" />
+    <Compile Include="parseTestLogs.fs" />
+    <Compile Include="main.fs" />
   </ItemGroup>
 
   <ItemGroup>
