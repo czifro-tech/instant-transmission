@@ -17,4 +17,6 @@ packages/
 out/
 *.log
 **/*.dat
+*.raw
+*.txt
 **/.DS_Store
