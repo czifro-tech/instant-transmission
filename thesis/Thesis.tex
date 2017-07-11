@@ -4,16 +4,17 @@
 
 % Set up the document
 \documentclass[a4paper, 11pt, oneside]{Thesis}  % Use the "Thesis" style, based on the ECS Thesis style by Steve Gunn
-\graphicspath{Figures/}  % Location of the graphics files (set up for graphics to be in PDF format)
 
 % Include any extra LaTeX packages required
 \usepackage[square, numbers, comma, sort&compress]{natbib}  % Use the "Natbib" style for the references in the Bibliography
-
+\usepackage[T1]{fontenc}
 \usepackage{verbatim}  % Needed for the "comment" environment to make LaTeX comments
 \usepackage{vector}  % Allows "\bvec{}" and "\buvec{}" for "blackboard" style bold vectors in maths
 \usepackage{graphicx} % Allows for "\includegraphics{}" for images
 \graphicspath{ {Images/} } % Set location of images
 \hypersetup{urlcolor=black, colorlinks=true}  % Colours hyperlinks in blue, but this can be distracting if there are many links.
+\input{fsharp-listings}
+\lstset{language=FSharp}
 %% ----------------------------------------------------------------
 \begin{document}
 \frontmatter      % Begin Roman style (i, ii, iii, iv...) page numbering
@@ -127,6 +128,10 @@
 %% ----------------------------------------------------------------
 % \lhead{\emph{List of Tables}}  % Set the left side page header to "List of Tables"
 % \listoftables  % Write out the List of Tables
+
+%% ----------------------------------------------------------------
+% \lhead{\emph{List of Listings}}  % Set the left side page header to "List of Listings"
+ \lstlistoflistings  % Write out the List of Listings
 
 %% ----------------------------------------------------------------
 \setstretch{1.5}  % Set the line spacing to 1.5, this makes the following tables easier to read
