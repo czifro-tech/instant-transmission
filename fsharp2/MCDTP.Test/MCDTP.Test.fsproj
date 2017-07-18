@@ -9,6 +9,7 @@
     <Compile Include="networkTests.fs" />
     <Compile Include="testRunner.fs" />
     <Compile Include="parseTestLogs.fs" />
+    <Compile Include="bandwidth.fs" />
     <Compile Include="main.fs" />
   </ItemGroup>
 
