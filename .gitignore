@@ -19,4 +19,5 @@ out/
 **/*.dat
 *.raw
 *.txt
+!.data/**/*.*
 **/.DS_Store
