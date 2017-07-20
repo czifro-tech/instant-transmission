@@ -6,6 +6,7 @@ namespace MCDTP.Test
       [
         "Test Execution",tests
         "Parse Test Results",executeParser
+        "Execute Bandwidth Tool",executeBandwidthTool
       ]
       |> Map.ofList
 
@@ -14,6 +15,7 @@ namespace MCDTP.Test
         0,"quit"
         1,"Test Execution"
         2,"Parse Test Results"
+        3,"Execute Bandwidth Tool"
       ]
       |> Map.ofList
 
