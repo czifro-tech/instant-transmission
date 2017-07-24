@@ -13,6 +13,8 @@ let sourceDirectory = "./thesis"
 
 let outDirectory = DirectoryInfo(sourceDirectory + "/out")
 
+let (</>) s1 s2 = Path.Combine(s1,s2)
+
 let cleanOutDirectory() =
   let rec delete (dir:DirectoryInfo) =
     dir.GetFiles()
@@ -32,19 +34,19 @@ let copyDependencies() =
     src.GetFiles()
     |> Array.filter(fun f -> not <| f.FullName.Contains(".fsx"))
     |> Array.iter(fun f ->
-      f.CopyTo(dest.FullName + "/" + f.Name) |> ignore
+      f.CopyTo(dest.FullName </> f.Name) |> ignore
     )
     src.GetDirectories()
     |> Array.filter(fun d -> d.FullName <> outDirectory.FullName)
     |> Array.iter(fun (d:DirectoryInfo) ->
-      let nd = DirectoryInfo(dest.FullName + "/" + d.Name)
+      let nd = DirectoryInfo(dest.FullName </> d.Name)
       nd.Create()
       copyTo d nd
     )
   let root = DirectoryInfo(sourceDirectory)
   outDirectory.Create()
   copyTo root outDirectory
-  outDirectory.FullName + "/Thesis.tex"
+  outDirectory.FullName </> "Thesis.tex"
 
 let genProcessStartInfo thesis =
   //printfn "Creating process start info..."
@@ -69,7 +71,6 @@ let startBuildCmd startInfo =
     None
 
 let checkBuildSuccess (processOp:Process option) =
-  //printfn "Checking build status..."
   if processOp.IsNone then
     printfn "Build failed to start"
   else
@@ -80,6 +81,11 @@ let checkBuildSuccess (processOp:Process option) =
       printfn "Build successful"
     build.Close()
     build.Dispose()
+
+let copyThesisToRoot() =
+  let outFile = outDirectory.FullName </> ".." </> ".." </> "Thesis.pdf"
+  let inFile = outDirectory.FullName </> "Thesis.pdf"
+  File.Copy(inFile,outFile,true)
 
 let handleDependencies = copyDependencies
 
@@ -92,3 +98,4 @@ if outDirectory.Exists then
 //printfn "Starting build pipeline..."
 //handleDependencies()
 buildThesis()
+copyThesisToRoot()
