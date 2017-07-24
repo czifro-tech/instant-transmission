@@ -3,3 +3,7 @@
 There are many ways to address the demand for reliable and fast network communication. Many solutions default to using the TCP Transport protocol to address reliability and simply tune TCP to improve speed \cite{brakmo1995tcp}\cite{wei2006fast}\cite{ha2008cubic}. Other protocols seek to harness the speed that UDP provides and impose a packet recovery system to ensure reliability \cite{He2002}\cite{Aspera2016}\cite{Fan2010}\cite{Meiss2007}\cite{gu2007udt}. Multi-socket options try to divvy the work required to transfer data across multiple TCP sockets \cite{Allman1995}\cite{Allman1997}\cite{Sivakumar2000psockets}. This paper reviewed a new protocol that sought to use a multi-socket UDP-based protocol using asynchronous technology. 
 
 The design of the protocol is lean to minimize protocol overhead. MCDTP employs a phase system like RBUDP and crosses it with Tsunami's packet recovery system. Additionally, MCDTP uses asynchrony to manage multiple data channnels. The data channels asynchronously flow data from disk to socket.
+
+While asynchrony has many benefits, this paper has shown that asynchrony can be a detriment to host performance when used liberally. The performance of MCDTP was doubly impacted by asynchrony. Throughput in general was hindered and in a multi-channel setup, packet loss worsened.
+
+The goal of this project was to shed light on how asynchrony impacts network protocol performance. MCDTP and the performance results of MCDTPi has achieved that goal.
