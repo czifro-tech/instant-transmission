@@ -53,9 +53,9 @@ let genProcessStartInfo thesis =
   let startInfo = ProcessStartInfo()
   startInfo.FileName <- "latexmk"
   startInfo.Arguments <- "-f -pdf -file-line-error " + thesis
-  startInfo.RedirectStandardOutput <- true
-  startInfo.RedirectStandardError <- true
-  startInfo.UseShellExecute <- false
+  startInfo.RedirectStandardOutput <- false
+  startInfo.RedirectStandardError <- false
+  startInfo.UseShellExecute <- true
   startInfo.WorkingDirectory <- outDirectory.FullName
   startInfo
 
