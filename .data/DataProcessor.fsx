@@ -58,20 +58,45 @@ let asyncSaveAsCsv filename (fileData:(string*string)[]) =
     return! writer.WriteAsync(data) |> Async.AwaitTask
   }
 
-let groupRecordsBySecond (data:(DateTime*int)[]) =
+let groupRecordsBySecond (data:((DateTime)*int)[]) =
+  let (++) f s = Array.append f s
   data
   |> Array.groupBy(fun (timeStamp,_) -> timeStamp)
+  |> Array.fold(fun acc (timeStamp, data) ->
+    if acc |> Array.isEmpty then [|(timeStamp, data)|]
+    else
+      let noThroughput t = [|t,0|]
+      let (timeStamp',_) = Array.last acc
+      let interval = (timeStamp - timeStamp').TotalSeconds |> int
+      if interval = 1 then acc ++ [|(timeStamp, data)|]
+      else
+        let missingData =
+          [|for i in 1..(interval-1) ->
+            (timeStamp'.AddSeconds(float i), noThroughput (timeStamp'.AddSeconds(float i)))|]
+        acc ++ missingData ++ [|(timeStamp, data)|]
+  ) Array.empty
 
 let computePerSecondThroughput (data:(DateTime*int)[]) =
   data
   |> groupRecordsBySecond
+  // |> (fun x -> printfn "%A" x; x)
+  // |> (fun x -> printfn "%A" (Array.get x 0); x)
+  // |> (fun x -> printfn "%A" (Array.length x); x)
   |> Array.mapi(fun i (_,data) ->
     (i + 1), (data |> Array.sumBy snd)
   )
 
 let processData (rawData:(string*string)[]) =
+  let start = DateTime.MinValue
   rawData
-  |> Array.map(fun (rawTimeStamp, rawBytesSent) -> (DateTime.Parse (rawTimeStamp.Split('.')).[0]), (int rawBytesSent))
+  |> Array.map(fun (rawTimeStamp, rawBytesSent) ->
+    let hms = (rawTimeStamp.Split('.')).[0].Split(':')
+    let h,m,s = (int hms.[0]) - 5, int hms.[1], int hms.[2]
+    let h = if h < 0 then h + 24 else h
+    let t = (((start.AddHours(float h)).AddMinutes(float m)).AddSeconds(float s))
+    // printfn "%A" (t.Ticks)
+    (t, (int rawBytesSent))
+  )
   |> computePerSecondThroughput
   |> Array.map(fun (second, throughput) -> (string second),(string throughput))
 
@@ -95,11 +120,11 @@ let fileProcessTasks =
   [
     // createClientFileProcessTask "sc-packet-capture.csv" "sc-throughput-per-second.csv"
     createClientFileProcessTask "dc-packet-capture.csv" "dc-throughput-per-second.csv"
-    // createClientFileProcessTask"qc-packet-capture.csv" "qc-throughput-per-second.csv"
+    createClientFileProcessTask "qc-packet-capture.csv" "qc-throughput-per-second.csv"
     // createClientFileProcessTask "oc-packet-capture.csv" "oc-throughput-per-second.csv"
     createServerFileProcessTask "sc-packet-capture.csv" "sc-throughput-per-second.csv"
     createServerFileProcessTask "dc-packet-capture.csv" "dc-throughput-per-second.csv"
-    // createServerFileProcessTask "qc-packet-capture.csv" "qc-throughput-per-second.csv"
+    createServerFileProcessTask "qc-packet-capture.csv" "qc-throughput-per-second.csv"
     // createServerFileProcessTask "oc-packet-capture.csv" "oc-throughput-per-second.csv"
   ]
 

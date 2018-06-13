@@ -4,23 +4,19 @@ As with many network protocols designed to transfer data quickly and reliably, t
 
 \section{Test Environment}
 
-The test environment used to test MCDTPi used commodity servers rented from a cloud computing company called DigitalOcean. Two servers were rented, one deployed in New York, USA and the second deployed in Amsterdam, Netherlands---the distance was deliberate to test MCDTPi over WAN. The rented servers were configured with 4 CPUs, 8GB of RAM, 80GB SSD, and 5TB of transfer and run Ubuntu 16.04LTS. DigitalOcean does not disclose any server specifications beyond this. The servers were further configured with the cross-platform version of .NET Framework, .NET Core 1.0.3, in order to execute the tests for MCDTPi.
-
-The Ethernet link of both servers places a constraint on the size of transmitted packets. This constraint is know as the Maximum Transmission Unit (MTU). The MTU for both servers was 1500 bytes. The largest a packet can be is 1500 bytes before it gets fragmented into smaller packets. Fragmentation is not handled by MCDTP, so MCDTPi was compiled with a UDP packet size set to 1400 bytes to account for any packet headers.
+The test environment was comprised of two servers rented from a cloud provider called DigitalOcean: a server in New York, USA and another server in Amsterdam, Netherlands. The rented servers ran Ubuntu 16.04 LTS and had the following configuration: 4 CPUs, 8GB of RAM, 80GB SSD, and 5TB of transfer. The trsnsfer specification is with respect to DigitalOcean tracking how much data passes through their network and imposing restrictions on rented servers. Unfortunately, DigitalOcean does not disclose any server specifications beyond this.
 
 \section{Testing}
 
-There were four test configurations applied to MCDTPi. All configurations used a 1GB file as the data source. Since both servers had 8GB of main memory, for each test, MCDTPi was able to hold the entire file in memory. Thus disk I/O was not a factor in performance. The variable between each test was the number of channels MCDTPi used on each test---single-, dual-, quad-, and octa-channel configurations.
-
-Since throughput and packet loss are used as performance measurements, only the Data Transmission phase of MCDTP is tested. This is to test the unreliability of MCDTP. By measuring unreliability, it gives insight as to how much work would need to be done to provide reliability.
+The executed tests used specific configurations. The implementation of MCDTPi was configured with single-, dual-, quad-, and octa-channel counts. Tests were also configured to load data from a 1GB data source. The role of client and server were arbitrarily assigned to the rented servers since both servers are perceivably identical. The Maximum Transmission Unit (MTU) for both servers were 1500 bytes. Fragmentation is not handled by MCDTP, so to avoid unpredictable behavior, MCDTPi was compiled to use a UDP packet size of 1400 bytes, this accounts for any packet headers.
 
 \subsection{Test Results}
 
-For the following tests, the server in New York played the role of client and the Amsterdam server played the role of server, which was arbitrarily decided since exact specifications on the servers are unknown and thus could not weigh in on this.
+Throughput and packet loss were the metrics of focus while executing tests. The built-in network logger was used to track packet loss and tcpdump was used to capture time and number of bytes as packets were transmitted and received. Both metrics were captured to file in real-time and later a custom built program was used to process the raw data. For instance, there were time gaps between transmitted packets that needed to be filled in as times where 0 bytes were sent. The raw data was also aggregated into one second intervals so that throughput could be calculated. For the following figures and tables, the aggregated data was further aggregated into 60 second intervals so that the behavior could be better observed.
 
-Figures \ref{fig:tr-ct} and \ref{fig:tr-st} show the throughput in bytes for single-, dual-, and quad-channel configurations for both client and server hosts, respectively. These results are discussed in section \ref{sec:anlys}.
+Figures \ref{fig:tr-ct} and \ref{fig:tr-st} show the throughput in Kilobits per second for single-, dual-, quad-, and octa-channel configurations for both client and server hosts, respectively. These results are discussed in Section \ref{sec:anlys}.
 
-Tables \ref{tab:server-perf} and \ref{tab:client-perf} show further statistics on performance. Figures \ref{fig:tr-at}, \ref{fig:tr-mt}, and \ref{fig:tr-pl} are the graphical representation of this data. These results are discussed in section \ref{sec:anlys}.
+Tables \ref{tab:server-perf} and \ref{tab:client-perf} show further statistics on performance. Figures \ref{fig:tr-at}, \ref{fig:tr-mt}, and \ref{fig:tr-pl} are the graphical representation of this data. These results are discussed in Section \ref{sec:anlys}.
 
 \begin{table}[H]
 \centering
@@ -28,8 +24,11 @@ Tables \ref{tab:server-perf} and \ref{tab:client-perf} show further statistics o
 \label{tab:server-perf}
 \begin{tabular}{rcccc}
 \multicolumn{1}{c}{} & Single    & Dual      & Quad       & Octa  \\
-Average Throughput   & 1.146Mbps & 2.893Mbps & 0.545Mbps  & 0Mbps \\
-Max Throughput       & 4.385Mbps & 6.998Mbps & 12.065Mpbs & 0Mbps \\
+\hline
+Average Throughput   & 17.9Kbps  & 18.1Kbps  & 2.7Kbps    & 0Kbps \\
+\hline
+Max Throughput       & 61.8Kbps  & 108.1Kbps & 146.3Kbps  & 0Kbps \\
+\hline
 Packet Loss          & 14.06\%   & 19.64\%   & 87.97\%    & 100\%
 \end{tabular}
 \end{table}
@@ -40,8 +39,10 @@ Packet Loss          & 14.06\%   & 19.64\%   & 87.97\%    & 100\%
 \label{tab:client-perf}
 \begin{tabular}{rcccc}
 \multicolumn{1}{c}{} & Single    & Dual      & Quad       & Octa  \\
-Average Throughput   & 1.018Mbps & 2.398Mbps & 0.52Mbps  & 0Mbps \\
-Max Throughput       & 3.879Mbps & 5.934Mbps & 11.755Mpbs & 0Mbps
+\hline
+Average Throughput   & 15.9Kbps  & 14.9Kbps  & 2.6Kbps    & 0Kbps \\
+\hline
+Max Throughput       & 55.2Kbps  & 90.0Kbps  & 143.3Kbps  & 0Kbps
 \end{tabular}
 \end{table}
 
@@ -50,13 +51,18 @@ Max Throughput       & 3.879Mbps & 5.934Mbps & 11.755Mpbs & 0Mbps
 
 The expected behavior of MCDTPi is that as resources increase with more channels, throughput and packet loss improve. The test results show that this behavior is partly true going from single-channel to dual-channel. Throughput improved two fold while packet loss had marginal degradation. However, performance worsened in both measurements for quad- and octa-channel configurations. Octa-channel was omitted in Figures \ref{fig:tr-ct} and \ref{fig:tr-st} because tests stalled and yielded no data. Though the Figure \ref{fig:tr-mt} shows quad-channel achieving the highest throughput, it had an average throughput that was half that of the single-channel. Quad-channel had over 6 times as much packet loss as well. This is all around worse.
 
-This outcome seems counter intuitive to what is expected. Nonetheless, this can be explained. To start, the single-channel itself is severely under-perfomant compared to other protocols like RBUDP and Tsunami. Those protocols achieve 300-500 times as much throughput compared to MCDTP. The major difference between this project and those is that MCDTPi experiments with using asynchrony to enhance performance.
+At the surface, this behavior seems to be inexplicable. When looking at the implementation of MCDTP, there is no bottleneck in the architecture that would cause packet transmission to be under-performant. Disk I/O operations occur asynchronously in such a way that does not interrupt the flow of data. If the issue does not exist within MCDTPi, then it must exist elsewhere.
 
-The TPL library is the foundation for asynchrony in the .NET Framework \cite{Leijen2009}. As discussed in this blog \cite{Lippert}, the TPL can bog down the performance of a program if too many tasks are created. The TPL library may provide lightweight task management, especially when compared to multi-threading; however, to manage numerous tasks begins to add overhead thus impacting performance.
+As stated in Section \ref{sec:mod-arch}, the .NET Core Framework is the foundation for MCDTPi. It has a significant role in the performance of MCDTPi and warrants investigation. The TPL library was first to be inspected as it is key to asynchrony in MCDTPi and is a major component of the .NET Core Framework \cite{Leijen2009}\cite{netCore103Src}. The Common Language Runtime (CLR), the underlying runtime system that executes code written atop the .NET Framework and .NET Core Framework, reveals how TPL handles I/O operations \cite{richter2012clr}.
 
-The granularity of asynchrony in MCDTPi is at the packet level. This means that for every packet, there is an asynchronous task. For these tests, there are nearly 800,000 asynchronous tasks created to handle only sending packets. The lifespan of a packet requires two more asynchronous task on a single host. This means that for a single file transfer 2.4 million tasks are created, causing significant overhead.
+When the TPL library handles an I/O operation, it requests that the CLR use I/O Completion Ports (IOCP) to finish the I/O operation asynchronously \cite{richter2012clr}. The unique feature about IOCP is that it is a pool of threads (ThreadPool-IOCP) designated for waiting on I/O operations to complete so that the pool of threads (ThreadPool-TPL) used by TPL are used only for computation tasks. According to \cite{richter2012clr}, IOCP is part of the Win32 Kernel API. This can be confirmed when looking at \cite{netCore103Src}.
 
-Single-channel and dual-channel were able to operate since the number of scheduled asynchronous tasks was more spead out. Quad-channel and octa-channel scheduled tasks more rapidly and either caused very low throughput, or a complete halt to the program.
+The source code for the .NET Core Framework indicates that technology equivalent to IOCP for Unix based operating systems is not being used for non-Windows variants \cite{netCore103Src}. This means that I/O operations are handled by the TPL library and that computation tasks need to compete for resources against I/O operations. In scenarios where there are a significant number of asynchronous tasks, of both computation and I/O operations, the TPL library will under-perform. There is also the possibility that the TPL will deadlock if there are insufficient resources to handle the completion of an I/O operation as it must queue another task when the hardware signals the operation finished \cite{richter2012clr}.
+
+This characteristic was not disclosed by \cite{netCore10}\cite{netCore103}\cite{netCore103Src} and thus this concern was not factored into the architecture of MCDTPi. Consequently, MCDTPi liberally used asynchrony to handle every packet that was transmitted and received. To transfer a 1GB data source requires more than 700,000 packets. Each packet is handled within the $Socket$ module is handled by 4 nested asynchronous computation tasks before calling the inner most nested asynchronous I/O operation, making it 5 asynchronous tasks per packet. Transferring a 1GB requires 3.5 million asynchronous tasks for the $Socket$ module alone.
+
+With so many task being scheduled on a system not fully optimized for asynchrony, the observed behavior of MCDTPi is now clear. The single-, dual-, and quad-channel configurations were able to operate since scheduled asynchronous tasks were more distributed. However, with each increase in channel count, the TPL library was put under strain more rapidly, negatively impacting performance. The octa-channel configuration overwhelmed the TPL library to the point of deadlock.
+
 
 \newpage
 
