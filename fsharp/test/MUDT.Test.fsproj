@@ -1,18 +1,18 @@
-﻿<Project Sdk="FSharp.NET.Sdk;Microsoft.NET.Sdk">
-  
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
   <PropertyGroup>
-    <TargetFramework>netcoreapp1.1</TargetFramework>
+    <TargetFramework>netcoreapp2.1</TargetFramework>
     <RootNamespace>MUDT.Test</RootNamespace>
     <AssemblyName>MUDT.Test</AssemblyName>
     <OutputType>Exe</OutputType>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <RuntimeIdentifiers>osx.10.11-x64;ubuntu.14.04-x64</RuntimeIdentifiers>
-    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <!-- <AllowUnsafeBlocks>true</AllowUnsafeBlocks> -->
+    <!-- <RuntimeIdentifiers>osx.10.11-x64;ubuntu.14.04-x64</RuntimeIdentifiers> -->
+    <!-- <EnableDefaultCompileItems>false</EnableDefaultCompileItems> -->
   </PropertyGroup>
 
   <Import Project=".\MUDT.Test.compile" />
 
-  <ItemGroup>
+  <!-- <ItemGroup>
     <Content Include="../.native/MUDT.Native.Apple.dylib">
       <PackagePath>runtimes/osx.10.11-x64</PackagePath>
       <Pack>true</Pack>
@@ -27,7 +27,7 @@
     <PackageReference Include="FSharp.Core" Version="4.1.*" />
     <PackageReference Include="FSharp.NET.Sdk" Version="1.0.*" PrivateAssets="All" />
     <PackageReference Include="System.IO.FileSystem" Version="4.3.0" />
-  </ItemGroup>
+  </ItemGroup> -->
 
   <ItemGroup>
     <ProjectReference Include="..\src\MUDT.fsproj" />
