@@ -1,10 +1,10 @@
 \chapter{Implementation}\label{chp:impl}
 
-Modular and asynchronous programming paradigms that are employed by the implementation of MCDTP. This Chapter discusses how the implementation of MCDTP uses these paradigms.
+Modular and asynchronous programming paradigms are employed by the implementation of MCDTP. This Chapter discusses how the implementation of MCDTP uses these paradigms.
 
 \section{Why F\#?}
 
-The F\# language, like C\#, can run atop the .NET Core Framework \cite{Leijen2009}\cite{syme2011f}. F\# was chosen over C\# because of the feature that are exclusive to F\#. The key aspect of F\# is the embedded domain specific language (EDSL) \cite{syme2011f}. The EDSL in F\# adds a component to F\# called ``computation expression'' that provides an abstraction to using features like asynchrony \cite{syme2011f}. The F\# compiler allows for custom computation expressions to be defined as will be shown in Section \ref{sec:api}.
+The F\# language, like C\#, can run atop the .NET Core Framework \cite{Leijen2009}\cite{syme2011f}. F\# was chosen over C\# because of the features that are exclusive to F\#. The key aspect of F\# is the embedded domain specific language (EDSL) \cite{syme2011f}. The EDSL in F\# adds a component to F\# called ``computation expression'' that provides an abstraction to using features like asynchrony \cite{syme2011f}. The F\# compiler allows for custom computation expressions to be defined as will be shown in Section \ref{sec:api}.
 
 Consider the following synchronous code:
 
@@ -38,7 +38,7 @@ let asyncParent =
 Async.RunSynchronously asyncParent
 \end{lstlisting}
 
-The transformation from synchronous code to asynchronous code is surprisingly straight forward thanks to the compiler, which is further discussed here \cite{syme2011f}. The ease of composing asynchronous tasks helps simplify constructing an asynchronous workflow, which is further discussed in section \ref{sec:async-arch}.
+The transformation from synchronous code to asynchronous code is surprisingly straight forward thanks to the compiler, which is further discussed here \cite{syme2011f}. The ease of composing asynchronous tasks helps simplify constructing an asynchronous workflow, which is further discussed in Section \ref{sec:async-arch}.
 
 \section{Modular Architecture}\label{sec:mod-arch}
 
@@ -110,7 +110,7 @@ Another core module to MCDTPi is the $Net$ module. This module handles network r
 
 \subsubsection{Protocol Sub-Module}
 
-The Application Layer protocol that MCDTP defines is a very simplistic protocol. However, the implementation is a little more complex and thus, to help with maintainablility, MCDTPi has split the protocol into two modules and the $Protocol$ submodule is one of them. Divvying up the protocol like this means that any future work that changes the messages being sent and received only effects this submodule. This translates to faster compiling of code and in a production scenario means shorter down times. This submodule handles raw data that either came off the wire, or will be sent across the wire. $Protocol$ parses and composes raw data, or more commonly known as deserialize and serialize, sometimes called ``SerDe", a data structure, respectively. Both of TCP and UDP packet structures discussed in section \ref{sec:proto-des} are handles by this submodule. $Protocol$ uses $Utility$ to convert raw bytes to more understandable primitive types. $Logging$ is also a dependency to provide output for error messaging so that when a message does not parse or compose correctly, the invalid input can be fetched for analysis if there is the need. The API of this submodule will be discussed in section \ref{sec:api}.
+The Application Layer protocol that MCDTP defines is a very simplistic protocol. However, the implementation is a little more complex and thus, to help with maintainablility, MCDTPi has split the protocol into two modules and the $Protocol$ submodule is one of them. Divvying up the protocol like this means that any future work that changes the messages being sent and received only effects this submodule. This translates to faster compiling of code and in a production scenario means shorter down times. This submodule handles raw data that either came off the wire, or will be sent across the wire. $Protocol$ parses and composes raw data, or more commonly known as deserialize and serialize, sometimes called ``SerDe", a data structure, respectively. Both of TCP and UDP packet structures discussed in Section \ref{sec:proto-des} are handles by this submodule. $Protocol$ uses $Utility$ to convert raw bytes to more understandable primitive types. $Logging$ is also a dependency to provide output for error messaging so that when a message does not parse or compose correctly, the invalid input can be fetched for analysis if there is the need. The API of this submodule will be discussed in Section \ref{sec:api}.
 
 \subsubsection{Sockets Sub-Module}
 
