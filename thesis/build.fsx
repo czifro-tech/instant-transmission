@@ -65,7 +65,7 @@ let startBuildCmd startInfo =
   build.StartInfo <- startInfo
   if build.Start() then
     Some build
-  else 
+  else
     build.Close()
     build.Dispose()
     None
@@ -75,7 +75,7 @@ let checkBuildSuccess (processOp:Process option) =
     printfn "Build failed to start"
   else
     let build : Process = processOp.Value
-    if not <| build.WaitForExit(10000) then
+    if not <| build.WaitForExit(15000) then
       printfn "Build failed. Check logs."
     else
       printfn "Build successful"

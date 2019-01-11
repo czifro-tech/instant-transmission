@@ -1,6 +1,6 @@
 %% ----------------------------------------------------------------
 %% Thesis.tex -- MAIN FILE (the one that you compile with LaTeX)
-%% ---------------------------------------------------------------- 
+%% ----------------------------------------------------------------
 
 % Set up the document
 \documentclass[a4paper, 11pt, oneside]{Thesis}  % Use the "Thesis" style, based on the ECS Thesis style by Steve Gunn
@@ -12,6 +12,7 @@
 \usepackage{vector}  % Allows "\bvec{}" and "\buvec{}" for "blackboard" style bold vectors in maths
 \usepackage{graphicx} % Allows for "\includegraphics{}" for images
 \usepackage{float}
+% \usepackage{cite}
 \graphicspath{ {Images/} } % Set location of images
 \hypersetup{urlcolor=black, colorlinks=true}  % Colours hyperlinks in blue, but this can be distracting if there are many links.
 \input{fsharp-listings}
@@ -51,25 +52,25 @@
 
 % I, AUTHOR NAME, declare that this thesis titled, `THESIS TITLE' and the work presented in it are my own. I confirm that:
 
-% \begin{itemize} 
+% \begin{itemize}
 % \item[\tiny{$\blacksquare$}] This work was done wholly or mainly while in candidature for a research degree at this University.
- 
+
 % \item[\tiny{$\blacksquare$}] Where any part of this thesis has previously been submitted for a degree or any other qualification at this University or any other institution, this has been clearly stated.
- 
+
 % \item[\tiny{$\blacksquare$}] Where I have consulted the published work of others, this is always clearly attributed.
- 
+
 % \item[\tiny{$\blacksquare$}] Where I have quoted from the work of others, the source is always given. With the exception of such quotations, this thesis is entirely my own work.
- 
+
 % \item[\tiny{$\blacksquare$}] I have acknowledged all main sources of help.
- 
+
 % \item[\tiny{$\blacksquare$}] Where the thesis is based on work done by myself jointly with others, I have made clear exactly what was done by others and what I have contributed myself.
 % \\
 % \end{itemize}
- 
- 
+
+
 % Signed:\\
 % \rule[1em]{25em}{0.5pt}  % This prints a line for the signature
- 
+
 % Date:\\
 % \rule[1em]{25em}{0.5pt}  % This prints a line to write the date
 % }
@@ -142,6 +143,8 @@
 {
 % \textbf{Acronym} & \textbf{W}hat (it) \textbf{S}tands \textbf{F}or \\
 \textbf{FTP}   & \textbf{F}ile \textbf{T}ransfer \textbf{P}rotocol \\
+\textbf{Kbps}  & \textbf{K}ilo\textbf{b}its \textbf{p}er \textbf{s}econd \\
+\textbf{Mbps}  & \textbf{M}ega\textbf{b}its \textbf{p}er \textbf{s}econd \\
 \textbf{MCDTP} & \textbf{M}ulti-\textbf{C}hannel \textbf{D}ata \textbf{T}ransfer \textbf{P}rotocol \\
 \textbf{NCP}   & \textbf{N}etwork \textbf{C}ontrol \textbf{P}rogram \\
 \textbf{RFC}   & \textbf{R}equest \textbf{F}or \textbf{C}omment \\
